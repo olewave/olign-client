@@ -94,14 +94,14 @@ This prints the overall score and the weakest words, and writes
 | length | files up to 60 minutes; a job takes about 0.12× the audio length |
 | size | 100 MB per upload. Compress long recordings, e.g. Opus at 32 kbit/s is ~14 MB an hour: `ffmpeg -i in.wav -ac 1 -c:a libopus -b:a 32k out.ogg` |
 | queue | jobs run one at a time; yours may wait as `queued` |
-| privacy | your audio is deleted as soon as the job finishes |
+| your data | Olewave keeps your audio, transcript and results for your account, as the beta testing agreement says; ask info@olewave.com to delete them |
 | User-Agent | send your own: Cloudflare rejects some HTTP-library defaults (`403`, `error code: 1010`, e.g. Python's `urllib`) |
 
 | code | when |
 |---|---|
 | `202` | submitted; the body has `job_id` |
 | `401` | missing or invalid API key |
-| `404` | unknown job id, one submitted with another key, or forgotten after a service restart: resubmit |
+| `404` | unknown job id, one submitted with another key, or a job still running when the service restarted: resubmit (finished jobs survive restarts) |
 | `411` | no `Content-Length` (a chunked upload) |
 | `413` | over 100 MB, or longer than a day's allowance; `audio_seconds` in the body is the recording's length |
 | `415` | not `multipart/form-data` |
