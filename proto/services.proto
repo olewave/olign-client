@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+import "common_types.proto";
+
+package olewave.olign;
+
+// OLIGN Service developed by OLEWAVE.
+//
+// Author: Wei Chu
+//
+// This is basically a modified on the basis of
+// https://github.com/googleapis/googleapis/blob/master/google/cloud/speech/v1/cloud_speech.proto
+//
+// There are two supplemental proto files associated with the current services.proto:
+//   - base_types.proto: 
+//      - Define basic messages like rank, coreType, etc that are frequently used in 
+//        request and/or response messages
+//   - response_utils.proto: 
+//      - Definition of phone/word/sentence score messages appearing in the response 
+//        message
+
+// NOTE: proto3 will convert field names to LOWERCASE
+// This means that variables "refText", "coreType", "attachAudioUrl" etc need to get fixed.
+
+service OlewaveSpeech {
+  rpc StreamingInference(stream StreamingInferenceRequest)
+      returns (stream StreamingInferenceResponse);
+}
+
+// Streaming inference request. Multiple `StreamingInferenceRequest` messages
+// are sent. The first message must contain a `assessment_config` or 
+// `assessment_config` message, and must  NOT contain any audio content. All 
+// subsequent messages must contain audio content and must not contain a 
+// `config` message.
+//
+// Next ID: 4
+message StreamingInferenceRequest {
+  oneof streaming_request {
+    // For assessment
+    // The user request as a json string. 
+    // ***NOTE*** Here, we have to take the detour and define `json_config` as a non-string 
+    // field. Otherwise, there will be NO "has_XXX" function to check if XXX is set or not.
+    // In proto3, there is no way to check if a string field is set or not (it always has a 
+    // default value, i.e. empty string "")
+    StreamingAssessmentJsonConfig assessment_config = 1;
+
+    // For speech recognition
+    StreamingRecognitionConfig recognition_config = 2;
+
+    // Here stores input audio in chunk.
+    bytes audio_content = 3;
+  }
+}
+
+// The streaming inference (decoding) configurations
+// 
+// Next ID: 8
+message StreamingRecognitionConfig {
+  AudioFormat.Kind format = 1;
+  SampleFrequency.Kind sample_frequency = 2;
+  
+  // If true, we will return each finalized segment once, and the
+  // caller is responsible for collecting the segments in streaming responses
+  // and assemble them into full text.
+  //
+  // The default is false, which means we return all the segment decoded so far
+  // in every response.
+  bool return_finalized_segment_once = 5;
+  
+  // If true, do end point detection within the stream. At each end point, we
+  // finalize the recognition result from the speech seen before the end point.
+  //
+  // Typically this should be true, as it enables the user to get results faster
+  // while reducing the server load.
+  bool enable_end_point_detection = 3;
+
+  // If > 0, emit partial recognition results after every this many seconds.
+  // The partial results should be modified later.
+  // If <= 0, the user can only get recognized text after each end point, or
+  // after all speech is sent if end point detection is turned off.
+  float emit_partial_results_every_n_secs = 4;
+}
+
+// // The result of a streaming speech recognition contains ALL the text
+// // recognized so far. The text may be splitted into several segments (i.e.,
+// // speech between two detected end points). The last segment may be partial,
+// // in which case the segment.is_final is false.
+// //
+// // Next ID: 6
+// message StreamingRecognitionConfig {
+//   // List of all recognized segment so far, including the partial. The
+//   // number of recognized segment will not decrease in subsequent responses.
+//   repeated RecognizedSegment segment = 1;
+//   // The response is based on processing this many milliseconds of speech.
+//   int32 processed_msec = 3;
+//   // If this is true, we have a new segment generated comparing to the  
+//   // time. The new segment may contain only partial results.
+//   bool detected_new_segment = 2;
+
+//   reserved 4, 5;
+// }
+
+// The user request sent as a json string
+//
+// Next ID: 2
+message StreamingAssessmentJsonConfig {
+  // Json config
+  string json_config = 1;
+}
+
+
+// It converts the content in `StreamingInferenceResponse` into the json string in `StreamingInferenceResponse`
+//
+// Next ID: 2
+message StreamingInferenceResponse {
+  // 评测返回结果，保存为json string格式
+  string json_output = 1;
+}
+
+// message StreamingInferenceResponse {
+//   oneof streaming_response {
+//     // StreamingAssessmentResponse
+//     // StreamingAssessmentJsonResponse assessment_response = 1;
+//     // 评测返回结果，保存为json string格式
+//     string json_output = 1;
+
+//     // StreamingRecognitionConfig
+//     StreamingRecognitionConfig recognition_response = 2;
+//   }
+// }
+
+
+
+// message StreamingAssessmentJsonResponse {
+//   // 评测返回结果，保存为json string格式
+//   string json_output = 1;
+// }
+
+// This StreamingAssessmentResponse is not used
+// A simplified response message with a single field named "output"
+// The value is the assessment outputs as a json string (processed from 
+// InferenceResponse  object) and that is what the client should receive.
+//
+// Next ID: 4
+// message StreamingAssessmentResponse {
+//   // 评测返回结果，保存为json string格式
+//   // oneof response {
+//   // Word-level response
+//   WordInferenceResponse word_response = 1;
+
+//   // Sentence-level response
+//   SentenceInferenceResponse sentence_response = 2;
+
+//   // Paragraph-level response
+//   ParagraphInferenceResponse paragraph_response = 3;
+// }

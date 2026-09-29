@@ -1,0 +1,1102 @@
+syntax = "proto3";
+
+// import "common_types.proto";
+import "assessment_request.proto";
+import "assessment_internal.proto";
+
+package olewave.olign;
+
+// Stores messages related to the response (assessment output interface)
+
+// // 单词，句子评测中的字母序列以及其对应的音素序列分数
+// //
+// // Next ID: 3
+// message OutputLetterGroupScore {
+//   // 字母序列，例如
+//   string chars = 1;
+
+//   // 音素序列
+//   repeated string phones = 2;
+
+//   // TODO: 添加字母序列的其他信息，例如总分以及准确度
+// }
+
+// move this to assess_internal.proto
+
+
+// 单词，句子评测中的音素分数
+// response.result.details[i].phone
+//
+// Next ID: 6
+// Per-phone acoustic evidence, for TRAINING the scoring models -- not for
+// clients. Emitted only with --output-lpp, because it is ~40 floats per
+// phone and would dwarf the rest of the response.
+//
+// The shape deliberately mirrors what the model trainer already reads
+// (pscoring utils/process_data.py: phone_detail['phone_stats']['ref_id'] and
+// ['alter_phone_lpps']), so a dump from this server drops straight into the
+// existing training scripts.
+//
+// THE VALUES DEPEND ON --acoustic-scale. lpp is an acoustic-scaled
+// pseudo-log-likelihood, so a model trained on a dump taken at one scale is
+// only valid at that scale. Record the scale alongside any dump.
+//
+// Next ID: 3
+message PhoneLpp {
+  // Index of the REFERENCE phone within alter_phone_lpps.
+  int32 ref_id = 1;
+
+  // Log posterior of each alternative phone over this phone's frames,
+  // per-frame normalised. Index order matches the model's phone alternatives.
+  repeated float alter_phone_lpps = 2;
+}
+
+message OutputPhoneScore {
+  // 音素，CMU音素，例如 ay (the 'i' in bike)
+  string char = 1;
+
+  // 音标，IPA音标，例如 aɪ (the 'i' in bike)
+  // 好学要求添加，非驰声字段
+  string ipa = 2;
+
+  // IPA开始索引数，例如 1 (the 'aɪ' in bike)
+  // (TODO: 改为ipa_begin_index，下面其他变量类似)
+  int32 ipaBeginIndex = 3;
+
+  // IPA结束索引, 例如 2 (the 'i' in bike)
+  int32 ipaEndIndex = 4;
+
+  // 字母，例如 i (the 'i' in bike)
+  string letter = 5;
+
+  // 字母开始索引, 例如 1 (the 'i' in bike)
+  // TODO: should be letter 
+  int32 letterBeginIndex = 6;
+
+  // 字母结束索引，例如 2 (the 'i' in bike)
+  int32 letterEndIndex = 7;
+
+  // 对应字母，例如 i (the 'i' in bike)
+  // 好学要求添加，非驰声字段
+  PhoneToLetter phone_to_letters = 8;
+
+  // 音素得分，原始的音素准确度分数
+  int32 score = 9;
+
+  // start time in milliseconds
+  int32 begin = 10;
+  
+  // end time in milliseconds
+  int32 end = 11;
+
+  // duration in milliseconds
+  int32 dur = 12;
+
+  PhoneErrorInfo error_info = 13;
+
+  // Confidence in [0, 1], rounded to 2 decimals: how well the audio supports
+  // the phone the transcript claims is here.
+  //
+  // WHAT IT IS FOR. Finding WRONGLY TRANSCRIBED material, not grading
+  // pronunciation. A native speaker who slurs the correct word should score
+  // near 1: the transcript is right, and that is the question being asked.
+  // Read a low value as "the audio may not say this", not as "said badly".
+  //
+  // Same quantity as `score` above, in the range a confidence belongs in.
+  // `score` stays int32 0-100 because changing its type would break every
+  // existing client on the wire (proto3 int32 and double are not
+  // interchangeable), so the two travel side by side and callers pick.
+  //
+  // Taken from the unrounded internal value rather than from `score`, so it
+  // rounds where `score` truncates: an internal 56.7 gives score=56 and
+  // confidence=0.57.
+  double confidence = 14;
+
+  // Acoustic evidence behind this phone's score. Present only with
+  // --output-lpp; see PhoneLpp. For model training, not for clients.
+  PhoneLpp phone_stats = 15;
+}
+
+// 好学新增字段: 音素错误信息
+// response.result.details[i].phone[j].error_info
+//
+// Next ID: 3
+message PhoneErrorInfo {
+  // 音素是否有读错
+  int32 is_err = 1;
+
+  // 音素类型 0: consonant, 1: vowel, 2: other phones (e.g. sil, oov, etc)
+  int32 type = 2;
+}
+
+// 单词评测里音节重音详细 
+// response.result.details[i].stress
+//
+// Next ID: 4
+message StressScore {
+  // 音节
+  string char = 1;
+
+  // 评测字典中对该音节重读标记状态，值有0,1。
+  // 状态说明：
+  // 0：没有标记重读
+  // 1：标记重读
+  int32 ref = 2;
+
+  // 发音是否重读，取值有0,1。
+  // 状态说明：
+  // 0：用户没有重读
+  // 1：用户重读了该音节
+  int32 score = 3;
+}
+
+
+// 句子评测中韵律性评分详细 (result.rhythm)
+// 包括句末升降调功能，
+// 根据话音基频的波动/升降来
+// 判断韵律性指标。（需要传参时进行
+// 标注后才能够评估此维度）
+//
+// Next ID: 5
+message SentenceRhythmScore {
+  // 韵律总体得分
+  int32 overall = 1;
+
+  // 意群得分
+  int32 sense = 2;
+
+  // 重音得分
+  int32 stress = 3;
+
+  // 声调得分
+  int32 tone = 4;
+}
+
+// 句子评测里的流畅度评分详细 (result.fluency)
+//
+// Next ID: 4
+message SentenceFluencyScore {
+  // 流利度总体得分
+  int32 overall = 1;
+
+  // 停顿次数，间隔大于0.5秒算一次
+  int32 pause = 2;
+
+  // 语速，即每分钟读的单词数（比例值）
+  int32 speed = 3;
+}
+
+// 段落评测
+// 单词得分详情，需在返回结果详细设置中启用单词
+// 详细得分（”ext_word_details”: 1,）
+//
+// Next ID: 10
+message ParagraphModeWordDetails {
+  // 单词发音得分
+  int32 score = 1;
+
+  // 单词文本
+  string text = 2;
+
+  // 将refText作为一个字符数组，beginindex表示单词的
+  // 首字符在refText中的下标，下标从0开始。为了方便
+  // 应用层原样回显refText
+  int32 beginindex = 3;
+
+  // 将refText作为一个字符数组，endindex表示单词
+  // 的末字符在refText中的下标，下标从0开始。为了方便
+  // 应用层原样回显refText
+  int32 endindex = 4;
+
+  // 单词在音频中的起始时间
+  int32 begin = 5;
+
+  // 单词在音频中的结束时间
+  int32 end = 6;
+
+  reserved 7;
+
+  // 好学新增字段，返回单词发音错误信息
+  WordErrorInfo error_info = 8;
+
+  // 新增字段，音素级评分结果 ("ext_phn_details": 1)
+  // repeated OutputPhoneScore phone = 9;
+}
+
+// 返回结果里关于音频的详细
+// response.result.info
+//
+// Next ID: 8
+message AudioDataInfo { 
+  // 音频质量, 详情请参考tipId字段说明
+  int32 tip_id = 1;
+
+  // 信噪比，范围是-10到无穷大,数字是正数且越大越好
+  float snr = 2;
+
+  // 截断 (0/1, set to 0 for now)
+  int32 trunc = 3;
+
+  // 音频截幅比例
+  float clip = 4;
+
+  // 录音音量
+  int32 volume = 5;
+
+  // 错误信息提示 (will be shown only when tip_id != 0)
+  string tips = 6;
+
+  // 音频有效时长 (只出现在段落评测结果）
+  int32 speechdur = 7;
+}
+
+// Field: response.ccode （不在文档里）
+//
+// Next ID: 4
+message CCode {
+  // code （不在文档里）
+  string code = 1;
+
+  // 长度 （不在文档里）
+  int32 len = 2;
+
+  // 时间
+  int32 time = 3;
+}
+
+// SDK field: response.sdk （不在文档里）
+//
+// Next ID: 4
+message SDK {
+  // 协议？
+  string protocol = 1;
+
+  // SDK 来源？
+  string source = 2;
+
+  // 版本
+  string version = 3;
+}
+
+// 时间字段 （不在文档里）
+// 
+// Next ID：6
+message Time {
+  // callback时间
+  string callback = 1;
+
+  // 连接时间
+  string connect = 2;
+
+  // 请求时间
+  string request = 3;
+
+  // 开始时间
+  string begin = 4;
+
+  // 结束时间
+  string end = 5;
+}
+
+// 每个单词发音错误信息, response.result.details[i].word_errors
+// 标记里单词是否有元音/辅音/重音错误。
+//
+// Next ID: 4
+message WordErrorInfo {
+  // 好学新增字段，表示单词是否有重音 (lexical stress) 错误
+  int32 is_lexical_stress_err = 1;
+
+  // 好学新增字段，表示单词是否有元音错误
+  int32 is_vowel_err = 2;
+
+  // 好学新增字段，表示单词是否有辅音错误
+  int32 is_consonant_err = 3;
+}
+
+// 句子评测的结果, response.result
+//
+// Next ID: 22
+message SentenceScoreResult {
+  // 总分
+  int32 overall = 1;
+
+  // 完整度评分
+  int32 integrity = 2;
+  
+  // 发音准确度（对已读部分的发音评价）
+  int32 accuracy = 3;
+  
+    // 音频时长
+  int32 wavetime = 4;
+  
+  // 普通文本 (0/1) set to 1 for now
+  int32 useref = 5;
+  
+  // 版本号
+  string version = 6;
+  
+  // 	评分分制. 4 or 100
+  int32 rank = 7;
+  
+  // 	内核资源
+  string res = 8;
+  
+  // 强制输出 (0/1, default is 0)
+  int32 forceout = 9;
+  
+  // 文本格式. (0/1, default is 0)
+  int32 textmode = 10;
+  
+  // 内部参数
+  int32 usehookw = 11;
+  
+  // 评测准备时长 (in milliseconds)
+  int32 pretime = 12;
+  
+  // aiengine_start后到callback (in milliseconds)
+  int32 systime = 13;
+  
+  // aiengine_stop后到callback (in milliseconds)
+  int32 delaytime = 14; 
+  
+  // 单词级发音参考
+  int32 pron = 15;
+  
+  // 是否英文. Set to 1
+  int32 is_en = 16;
+
+  // 流利度评分（与发音内容无关，
+  // 每个单词的标准发音时长和单词与单词
+  // 之间的静默音时长比例来计算）
+  // 流利度会影响到综合得分，影响的程度是：
+  // 当用户的发音准确度越高，流利度对总分的影响权重越大，
+  // 当用户发音准确度越低，那流利度对总分
+  // 的影响权重越小，甚至没有。
+  SentenceFluencyScore fluency = 17;
+
+  // 韵律性评分，即句末升降调功能，
+  // 根据话音基频的波动/升降来
+  // 判断韵律性指标。（需要传参时进行
+  // 标注后才能够评估此维度）
+  SentenceRhythmScore rhythm = 18;
+
+  // 单词详细得分
+  repeated SentenceModeWordDetail details = 19;
+  
+  // 音频质量详细
+  AudioDataInfo info = 20;
+
+  // english prob (1 means yes)
+  int32 en_prob = 21;
+
+  // Overall confidence in [0, 1], 2 decimals: how well the audio supports the
+  // transcript as a whole. Same quantity as `overall`, which stays int32
+  // 0-100 for wire compatibility. See OutputPhoneScore.confidence.
+  double confidence = 22;
+}
+
+
+// 单词评测的结果, response.result
+//
+// Next ID: 18
+message WordScoreResult {
+  // 总分
+  int32 overall = 1;
+
+  // 单词级发音参考
+  int32 pron = 2;
+  
+    // 音频时长
+  int32 wavetime = 3;
+  
+  // 普通文本 (0/1) set to 1 for now
+  int32 useref = 4;
+  
+  // 版本号
+  string version = 5;
+  
+  // 	评分分制. 4 or 100
+  int32 rank = 6;
+  
+  // 	内核资源
+  string res = 7;
+  
+  // 强制输出 (0/1, default is 0)
+  int32 forceout = 8;
+  
+  // 文本格式. (0/1, default is 0)
+  int32 textmode = 9;
+  
+  // 内部参数
+  int32 usehookw = 10;
+  
+  // 评测准备时长 (in milliseconds)
+  int32 pretime = 11;
+  
+  // aiengine_start后到callback (in milliseconds)
+  int32 systime = 12;
+  
+  // aiengine_stop后到callback (in milliseconds)
+  int32 delaytime = 13; 
+  
+  // 是否英文. Set to 1
+  int32 is_en = 14;
+
+  // 单词详细得分
+  repeated WordModeWordDetail details = 15;
+  
+  // 音频质量详细
+  AudioDataInfo info = 16;
+
+  // english prob (1 means yes)
+  int32 en_prob = 17;
+
+  // Overall confidence in [0, 1], 2 decimals: how well the audio supports the
+  // transcript as a whole. Same quantity as `overall`, which stays int32
+  // 0-100 for wire compatibility. See OutputPhoneScore.confidence.
+  double confidence = 18;
+}
+
+
+// 段落评测的结果, response.result
+//
+// Next ID: 23
+message ParagraphScoreResult {
+  // 总分
+  int32 overall = 1;
+
+  // 完整度评分
+  int32 integrity = 2;
+  
+  // 准确度得分(已发音部分)
+  int32 pron = 3;
+
+  // 流利度评分（与发音内容无关，
+  // 每个单词的标准发音时长和单词与单词
+  // 之间的静默音时长比例来计算）
+  // 流利度会影响到综合得分，影响的程度是：
+  // 当用户的发音准确度越高，流利度对总分的影响权重越大，
+  // 当用户发音准确度越低，那流利度对总分
+  // 的影响权重越小，甚至没有。
+  int32 fluency = 4;
+
+  // 韵律性评分，即句末升降调功能，
+  // 根据话音基频的波动/升降来
+  // 判断韵律性指标。（需要传参时进行
+  // 标注后才能够评估此维度）
+  int32 rhythm = 5;
+
+    // 音频时长
+  int32 wavetime = 6;
+  
+  // 版本号
+  string version = 7;
+  
+  // 	评分分制. 4 or 100
+  int32 rank = 8;
+  
+  // 	内核资源
+  string res = 9;
+  
+  // 评测准备时长 (in milliseconds)
+  int32 pretime = 10;
+  
+  // aiengine_start后到callback (in milliseconds)
+  int32 systime = 11;
+  
+  // aiengine_stop后到callback (in milliseconds)
+  int32 delaytime = 12; 
+
+  // 评分精度 (1 or 0.5) (段落评测结果里）
+  float precision = 13;
+
+  // 未收录在评测词典里的单词，需将这些单词反馈驰声技术支持 (段落评测结果里）
+  repeated string oov_words = 14;
+
+  // 句子详细得分
+  repeated ParagraphModeSentenceDetail details = 15;
+  
+  // 音频质量详细
+  AudioDataInfo info = 16;
+
+  // 实际时间
+  int32 realtime = 17;
+
+  // Overall confidence in [0, 1], 2 decimals: how well the audio supports the
+  // transcript as a whole. Same quantity as `overall`, which stays int32
+  // 0-100 for wire compatibility. See OutputPhoneScore.confidence.
+  double confidence = 18;
+}
+
+
+// 句子评测里单词详细得分 response.result.details[i]
+//
+// Next ID: 26
+message SentenceModeWordDetail {
+  // 单词
+  string char = 1;
+
+  // 英美音区分标记。
+  // 0: 未做标记的发音
+  // 1: 英式发音
+  // 2: 美式发音
+  // 3: 英式发音和美式发音相同
+  int32 accent = 2;
+
+  // 单词发音得分
+  int32 score = 3;
+
+  // 参考文本中单词形式，需开启显示单词原格式
+  string rawchar = 4;
+
+  // 单词类型，需开启显示符号格式 (1 or 2)
+  //   1: 符号类别
+  //   2: 单词类别
+  int32 type = 5;
+
+  // 单词是否在词库，
+  // 1：在驰声字典里
+  // 0：说明是非法词
+  int32 indict = 6;
+
+  // 单词在音频中的起始时间，单位为rrr毫秒（ms）
+  int32 begin = 7;
+  
+  // 单词在音频中的结束时间，单位为毫秒（ms）
+  int32 end = 8;
+  
+  // 单词发音时间
+  int32 dur = 9;
+
+  // 将refText作为一个字符数组，beginindex表示
+  // 单词的首字符在refText中的下标，下标从0开始。
+  // 为了方便应用层原样回显refText
+  int32 beginindex = 10;
+
+  // 将refText作为一个字符数组，endindex表示单
+  // 词的末字符在refText中的下标，下标从0开始。
+  // 为了方便应用层原样回显refText
+  int32 endindex = 11;
+
+  //重(zhong4)读标识，对应评分文本该单词后面标注的(s:1) (set to 0 by default)
+  int32 stressref = 12;
+
+  // 重音得分,1表示重读 0表示未重读， stressscore=stressref 表示重读发音和标注符合
+  int32 stressscore = 13;
+
+  // //升降调标识，对应评分文本该单词后面标注的(t:1) (set to 0 by default)
+  int32 toneref = 14;
+
+  // 升降调结果，1表示升调，0表示降调，tonescore=toneref 表示语调发音和标注符合
+  int32 tonescore = 15;
+
+  // 流利度评分
+  int32 fluency = 16;
+
+  // 意群停顿标识 (default is 0)
+  int32 senseref = 17;
+
+  // 用户是否停顿判别 (default is 0)
+  int32 sensescore = 18;
+
+  // 停顿标识 (set to 0 by default). 只出现在结果例子里
+  int32 pause_ref = 19;
+
+  // 停顿判别 (set to 0 by default). 只出现在结果例子里
+  int32 pause_score = 20;
+
+  // 音素级评分结果
+  repeated OutputPhoneScore phone = 21;
+
+  // to be removed.
+  // 字母序列与对应音素评分结果 grouped letter sequence to phones results
+  // repeated OutputLetterGroupScore letter_group = 22;
+
+  // 馳聲沒有，但ITG給的示例里面有
+  int32 conn_ref = 23;
+
+  // 馳聲沒有，但ITG給的示例里面有
+  int32 conn_type = 24;
+
+  // 好学新增字段，返回单词发音错误信息
+  WordErrorInfo error_info = 25;
+
+  // Confidence in [0, 1], 2 decimals: how well the audio supports the
+  // transcribed word. For finding wrongly transcribed words, NOT for grading
+  // pronunciation -- see OutputPhoneScore.confidence. Same quantity as
+  // `score`, which stays int32 0-100 for wire compatibility.
+  double confidence = 26;
+}
+
+
+// 单词评测里单词详细得分 response.result.details[i]
+//
+// Next ID: 14
+message WordModeWordDetail {
+  // 单词
+  string char = 1;
+
+  // 英美音区分标记。
+  // 0: 未做标记的发音
+  // 1: 英式发音
+  // 2: 美式发音
+  // 3: 英式发音和美式发音相同
+  int32 accent = 2;
+
+  // 单词发音得分
+  int32 score = 3;
+
+  // 单词是否在词库，
+  // 1：在驰声字典里
+  // 0：说明是非法词
+  int32 indict = 4;
+
+  // 单词在音频中的起始时间，单位为毫秒（ms）
+  int32 begin = 5;
+  
+  // 单词在音频中的结束时间，单位为毫秒（ms）
+  int32 end = 6;
+  
+  // 单词发音时间: end - start
+  int32 dur = 7;
+
+  // 将refText作为一个字符数组，beginindex表示
+  // 单词的首字符在refText中的下标，下标从0开始。
+  // 为了方便应用层原样回显refText
+  int32 beginindex = 8;
+
+  // 将refText作为一个字符数组，endindex表示单
+  // 词的末字符在refText中的下标，下标从0开始。
+  // 为了方便应用层原样回显refText
+  int32 endindex = 9;
+
+  // 音素级评分结果
+  repeated OutputPhoneScore phone = 10;
+
+  // 音节是否重读 （只在单词评测里出现）
+  repeated StressScore stress = 11;
+
+  reserved 12;
+
+  // 好学新增字段，返回单词发音错误信息
+  WordErrorInfo error_info = 14;
+
+  // Confidence in [0, 1], 2 decimals: how well the audio supports the
+  // transcribed word. For finding wrongly transcribed words, NOT for grading
+  // pronunciation -- see OutputPhoneScore.confidence. Same quantity as
+  // `score`, which stays int32 0-100 for wire compatibility.
+  double confidence = 15;
+}
+
+
+// 段落评测里句子详细得分 response.result.details[i]
+//
+// Next ID: 8
+message ParagraphModeSentenceDetail {
+  // 句子文本
+  string text = 1;
+
+  // 句子发音得分
+  int32 score = 2;
+
+  // 单词在音频中的起始时间，单位为毫秒（ms）
+  int32 begin = 3;
+  
+  // 单词在音频中的结束时间，单位为毫秒（ms）
+  int32 end = 4;
+
+  // 将refText作为一个字符数组，beginindex表示
+  // 单词的首字符在refText中的下标，下标从0开始。
+  // 为了方便应用层原样回显refText
+  int32 beginindex = 5;
+
+  // 将refText作为一个字符数组，endindex表示单
+  // 词的末字符在refText中的下标，下标从0开始。
+  // 为了方便应用层原样回显refText
+  int32 endindex = 6;
+
+  // 单词得分详情，需在返回结果详细设置中启用单词
+  // 详细得分（”ext_word_details”: 1,）
+  repeated ParagraphModeWordDetails word = 7;
+}
+
+// 句子评测里回显客户端传入的评测请求参数 response.params
+//
+// Next ID: 4
+message SentenceParams {
+  // App 相关信息
+  AppConfig app = 1;
+
+  // 用户发出请求时所含的内容
+  SentenceRequestInfo request = 2;
+
+  // 音频信息
+  AudioConfig audio = 3;
+}
+
+// 单词评测里回显客户端传入的评测请求参数 response.params
+//
+// Next ID: 4
+message WordParams {
+  // App 相关信息
+  AppConfig app = 1;
+  
+  // 用户发出请求时所含的内容
+  WordRequestInfo request = 2;
+
+  // 音频信息
+  AudioConfig audio = 3;
+}
+
+// 段落评测里回显客户端传入的评测请求参数 response.params
+//
+// Next ID: 4
+message ParagraphParams {
+  // App 相关信息
+  AppConfig app = 1;
+  
+  // 用户发出请求时所含的内容
+  ParagraphRequestInfo request = 2;
+
+  // 音频信息
+  AudioConfig audio = 3;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//                     Sentence-Level Response
+//                     句子评测需要返回的所有内容
+//
+///////////////////////////////////////////////////////////////////////////////
+//
+// Next ID: 20
+message SentenceInferenceResponse {
+  // 音频及数据对应的唯一标识, 请保存到产品数据库,方便排查问题
+  string uuid = 1;
+
+  // 音频及数据对应的唯一标识，兼容性保留, 请保存到产品数据库,方便排查问题
+  string record_id = 2;
+
+  // 音频下载地址
+  // 将该字段中的端口号去除，并加上”.mp3”即可直接访问。
+  // 如需https协议，则将url前缀直接更改成https即可。
+  // 音频保存期限一周，如需长久保存，建议下载转存。
+  string audio_url = 3;
+
+  // 评分参考文本，支持整个句子，可以带标点符号，
+  // 单词个数建议在2~20个单词之间，如”I want to
+  // know the past and present of Hong Kong.”
+  // 详情参考文本符号说明。
+  // 超过20个单词，建议使用段落朗读评测。
+  // string ref_text = 4;
+
+  // 原标识，兼容性保留
+  string token_id = 5;
+
+  // 授权账号
+  string application_id = 6;
+
+  // 评分结果返回时间
+  string dt_last_response = 7;
+
+  // Is this the final result. (1: yes, 0: no)
+  int32 eof = 8;
+
+  // 句子评测里回显客户端传入的评测请求参数
+  SentenceParams params = 9;
+
+  // 最终评测结果
+  SentenceScoreResult result = 12;
+
+  // 错误码 (only appear when there is an error)
+  // Will be bounded by ErrorId enum.
+  int32 err_id = 13;
+
+  // 错误信息 (only appear when there is an error)
+  string error = 14;
+
+  // Version number
+  string version = 15;
+
+  // Offline mode (1 is yes?)
+  int32 offline = 16;
+
+  // 不在文档里
+  CCode ccode = 17;
+
+  // SDK相关信息，不在文档里
+  SDK sdk = 18;
+
+  // 时间信息，不在文档里
+  Time time = 19;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//                     Word-Level Response
+//                     单词评测需要返回的所有内容
+//
+///////////////////////////////////////////////////////////////////////////////
+//
+// Next ID: 20
+message WordInferenceResponse {
+  // 音频及数据对应的唯一标识, 请保存到产品数据库,方便排查问题
+  string uuid = 1;
+
+  // 音频及数据对应的唯一标识，兼容性保留, 请保存到产品数据库,方便排查问题
+  string record_id = 2;
+
+  // 音频下载地址
+  // 将该字段中的端口号去除，并加上”.mp3”即可直接访问。
+  // 如需https协议，则将url前缀直接更改成https即可。
+  // 音频保存期限一周，如需长久保存，建议下载转存。
+  string audio_url = 3;
+
+  // 评分参考文本，支持整个句子，可以带标点符号，
+  // 单词个数建议在2~20个单词之间，如”I want to
+  // know the past and present of Hong Kong.”
+  // 详情参考文本符号说明。
+  // 超过20个单词，建议使用段落朗读评测。
+  // string ref_text = 4;
+
+  // 原标识，兼容性保留
+  string token_id = 5;
+
+  // 授权账号
+  string application_id = 6;
+
+  // 评分结果返回时间
+  string dt_last_response = 7;
+
+  // Is this the final result. (1: yes, 0: no)
+  int32 eof = 8;
+
+  // 单词评测里回显客户端传入的评测请求参数
+  WordParams params = 9;
+
+  // 最终评测结果
+  WordScoreResult result = 12;
+
+  // 错误码 (only appear when there is an error)
+  // Will be bounded by ErrorId enum.
+  int32 err_id = 13;
+
+  // 错误信息 (only appear when there is an error)
+  string error = 14;
+
+  // Version number
+  string version = 15;
+
+  // Offline mode (1 is yes?)
+  int32 offline = 16;
+
+  // 不在文档里
+  CCode ccode = 17;
+
+  // SDK相关信息，不在文档里
+  SDK sdk = 18;
+
+  // 时间信息，不在文档里
+  Time time = 19;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//                     Paragraph-Level Response
+//                     段落评测需要返回的所有内容
+//
+///////////////////////////////////////////////////////////////////////////////
+//
+// Next ID: 18
+message ParagraphInferenceResponse {
+  // 音频及数据对应的唯一标识, 请保存到产品数据库,方便排查问题
+  string uuid = 1;
+
+  // 音频及数据对应的唯一标识，兼容性保留, 请保存到产品数据库,方便排查问题
+  string record_id = 2;
+
+  // 音频下载地址
+  // 将该字段中的端口号去除，并加上”.mp3”即可直接访问。
+  // 如需https协议，则将url前缀直接更改成https即可。
+  // 音频保存期限一周，如需长久保存，建议下载转存。
+  string audio_url = 3;
+
+  // 评分参考文本，支持整个句子，可以带标点符号，
+  // 单词个数建议在2~20个单词之间，如”I want to
+  // know the past and present of Hong Kong.”
+  // 详情参考文本符号说明。
+  // 超过20个单词，建议使用段落朗读评测。
+  // string ref_text = 4;
+
+  // 原标识，兼容性保留
+  string token_id = 5;
+
+  // 授权账号
+  string application_id = 6;
+
+  // 评分结果返回时间
+  string dt_last_response = 7;
+
+  // Is this the final result. (1: yes, 0: no)
+  int32 eof = 8;
+
+  // 段落评测里回显客户端传入的评测请求参数
+  ParagraphParams params = 9;
+
+  // 最终评测结果
+  ParagraphScoreResult result = 12;
+
+  // 错误码 (only appear when there is an error)
+  // Will be bounded by ErrorId enum.
+  int32 err_id = 13;
+
+  // 错误信息 (only appear when there is an error)
+  string error = 14;
+
+  // 不在文档里
+  CCode ccode = 15;
+
+  // SDK相关信息，不在文档里
+  SDK sdk = 16;
+
+  // 时间信息，不在文档里
+  Time time = 17;
+}
+
+
+// 句子评测的请求详细 response.params.request
+//
+// Next ID: 15
+message SentenceRequestInfo {
+  // Type of the assessment
+  string core_type = 1;
+
+  // 用户请求唯一标识
+  string token_id = 2;
+
+  // 评分参考文本
+  string ref_text = 3;
+
+  // 评分分制, 4 or 100
+  int32 rank = 4;
+
+  // 评测结果中是否返回音频url (0 or 1)
+  int32 attach_audio_url = 5;
+
+  // US accent by default (value = 2)
+  int32 accent = 6;
+
+  int32 ipa = 7;
+
+  // time stamp
+  string timestamp = 8;
+
+  // timeout
+  int32 core_timeout = 9;
+
+  // sig
+  string sig = 10;
+
+  // user_id
+  string user_id = 11;
+
+  // 评分精度 (设为1）
+  float precision = 12;
+
+  // 句子评测，详细得分选项
+  ParamsForWordSentenceModes result = 13;
+
+  // 浊化开关，可填0或1，默认是1。
+  // 值为0，表示用户发音浊化和非浊化都算正确。
+  // 值为1，表示用户发音必须浊化才算正确。
+  int32 voiced = 14;
+}
+
+
+// 单词评测的请求详细 response.params.request
+//
+// Next ID: 14
+message WordRequestInfo {
+  // Type of the assessment
+  string core_type = 1;
+
+  // 用户请求唯一标识
+  string token_id = 2;
+
+  // 评分参考文本
+  string ref_text = 3;
+
+  // 评分分制, 4 or 100
+  int32 rank = 4;
+
+  // 评测结果中是否返回音频url (0 or 1)
+  int32 attach_audio_url = 5;
+
+  // US accent by default (value = 2)
+  int32 accent = 6;
+
+  // time stamp
+  string timestamp = 7;
+
+  // timeout
+  int32 core_timeout = 8;
+
+  // sig
+  string sig = 9;
+
+  // 评分精度（设为1）
+  int32 precision = 10;
+
+  // ipa
+  int32 ipa = 11;
+
+  // 单词评测，详细得分选项
+  ParamsForWordSentenceModes result = 12;
+
+  // 浊化开关，可填0或1，默认是1。
+  // 值为0，表示用户发音浊化和非浊化都算正确。
+  // 值为1，表示用户发音必须浊化才算正确。
+  int32 voiced = 13;
+}
+
+
+// 段落评测的请求详细 response.params.request
+//
+// Next ID: 13
+message ParagraphRequestInfo {
+  // Type of the assessment
+  string core_type = 1;
+
+  // 用户请求唯一标识
+  string token_id = 2;
+
+  // 评分参考文本
+  string ref_text = 3;
+
+  // 评分分制, 4 or 100
+  int32 rank = 4;
+
+  // 评测结果中是否返回音频url (0 or 1)
+  int32 attach_audio_url = 5;
+
+  // US accent by default (value = 2)
+  int32 accent = 6;
+
+  // 评分精度 1 or 0.5
+  float precision = 7;
+
+  // 段落评测，详细得分选项
+  ParagraphResultSetting client_params = 8;
+
+  // time stamp
+  string timestamp = 9;
+
+  // timeout
+  int32 core_timeout = 10;
+
+  // sig
+  string sig = 11;
+
+  // user id
+  string user_id = 12;
+}

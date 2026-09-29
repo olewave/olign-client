@@ -1,0 +1,113 @@
+# CI for olign-client.
+#
+# The one thing that can silently break this repo is the vendored proto/
+# drifting from the olign server release it is pinned to (OLIGN_VERSION). Those
+# protos are a *copy* of olign's src/io/proto -- kept vendored on purpose so
+# external developers can generate stubs without access to the private server
+# repo -- so nothing structurally stops them rotting. That is what CI guards.
+#
+# One-time setup:
+#   * a runner must be available to this project (speech-sdk group, or shared)
+#   * speech-sdk/olign-client must be in olign's job-token allowlist
+#     (olign > Settings > CI/CD > Job token permissions) -- already added, so
+#     CI_JOB_TOKEN below can clone olign at the pinned tag.
+
+stages: [check]
+
+variables:
+  # Mirrors the OLIGN_VERSION file. CI cannot read a file when it resolves a
+  # `services:` image name, so the pin has to exist as a variable too --
+  # contract-test asserts the two are identical, so they cannot drift apart.
+  OLIGN_VERSION: v0.9.0
+
+proto-sync:
+  stage: check
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+  before_script:
+    - apk add --no-cache git bash diffutils
+  script:
+    # Read olign over HTTPS with the job token (SSH keys aren't available in CI);
+    # tools/check_proto_sync.sh honours $OLIGN_REPO.
+    - export OLIGN_REPO="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/speech-modeling/olign.git"
+    - bash ./tools/check_proto_sync.sh
+
+# Does this client actually WORK against the exact olign release it pins?
+# proto-sync only compares text; this runs the real server image at
+# $OLIGN_VERSION and drives a real assessment through examples/rest_client.sh.
+#
+# olign runs as a *service* (its own container, entrypoint intact, so the server
+# starts normally) rather than inside the job: the runtime image is slim and has
+# no curl/python3, so the tooling has to live in the job container. They share a
+# network, so the service is reachable at its alias.
+#
+# Note the pinned v0.9.0 server predates the X-Olign-Client-Version guard, so
+# this also proves the back-compat direction: a newer client that sends the
+# header still works against a server that knows nothing about it.
+contract-test:
+  stage: check
+  image: alpine:3.20
+  services:
+    - name: registry.olewave.com:5050/speech-modeling/olign:$OLIGN_VERSION
+      alias: olign
+  variables:
+    # Passed to the service container too, so the server serves the public
+    # /olign/v0.9 shape rather than the bare /v1/assess routes.
+    HTTP_BASE_PATH: /olign/v0.9
+    OLIGN_URL: http://olign:8080/olign/v0.9
+    REF_TEXT: "what is better a fruit or hamburger"
+    # en.word.score: the README's documented fixture. The v0.9.0 image scores
+    # it identically on every request (2026-09-29: overall 87, 7 words,
+    # wavetime 4480 ms, the same on the public server). Word count and
+    # wavetime are the hard checks; overall gets a band, so a patch release
+    # that nudges a score doesn't fail CI.
+    CORE_TYPE: en.word.score
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+  before_script:
+    - apk add --no-cache bash curl python3
+  script:
+    # 1. the two copies of the pin must agree
+    - |
+      pin=$(tr -d ' \r\n' < OLIGN_VERSION)
+      if [ "$pin" != "$OLIGN_VERSION" ]; then
+        echo "pin mismatch: OLIGN_VERSION file is '$pin', CI variable is '$OLIGN_VERSION'"; exit 1
+      fi
+      echo "pinned olign: $pin"
+    # 2. wait for the server (model load takes a few seconds)
+    - |
+      for i in $(seq 1 60); do
+        curl -sf -m 2 "$OLIGN_URL/healthz" >/dev/null 2>&1 && { echo "olign healthy after $((i*2))s"; break; }
+        sleep 2
+      done
+      curl -sf -m 5 "$OLIGN_URL/healthz" >/dev/null || { echo "olign never became healthy"; exit 1; }
+    # 3. drive a real assessment through the client and check the scorecard
+    - |
+      out=$(bash ./examples/rest_client.sh --url "$OLIGN_URL" --core-type "$CORE_TYPE" \
+              --wav examples/short1.wav --ref-text "$REF_TEXT") || { echo "client failed"; exit 1; }
+      echo "$out"
+      # Hard checks: identical on every request.
+      echo "$out" | grep -q 'words=7'         || { echo "FAIL: expected 7 words"; exit 1; }
+      echo "$out" | grep -q 'wavetime=4480'   || { echo "FAIL: expected wavetime=4480 (ms)"; exit 1; }
+      # Soft check: a band around the reference, not an exact value.
+      ov=$(printf '%s' "$out" | sed -n 's/.*overall=\([0-9][0-9]*\).*/\1/p')
+      case "$ov" in ''|*[!0-9]*) echo "FAIL: no overall score parsed"; exit 1;; esac
+      if [ "$ov" -lt 84 ] || [ "$ov" -gt 90 ]; then
+        echo "FAIL: overall=$ov outside 84..90 ($CORE_TYPE reference is 87)"; exit 1
+      fi
+      echo "OK: client $pin works against olign $OLIGN_VERSION (overall=$ov, 7 words, wavetime=4480)"
+
+# The v1 examples' processing (summary, CSVs, TextGrid) on the committed sample
+# result: no server, no key. tests/test_v1_live.py needs an API key and spends
+# its daily allowance, so it stays a manual run.
+v1-offline:
+  stage: check
+  image: python:3.12-alpine
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - python3 -m unittest tests.test_v1_offline -v

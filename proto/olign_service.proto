@@ -1,0 +1,41 @@
+// The public gRPC surface, in its own proto package so the wire path reads
+// /olign.Speech/Assess.
+//
+// Why a separate file+package instead of renaming services.proto: the messages
+// in services.proto also live in the inference core (InferenceSession's
+// json_response_ IS a StreamingInferenceResponse), and a proto package is the
+// C++ namespace -- moving them would drag olewave::olign's core types along and
+// break every existing client. Here only the SERVICE moves; the messages stay
+// olewave.olign, so the core is untouched.
+//
+// The wire path matters because a reverse proxy can only route gRPC by it: a
+// gRPC client always sends "/<proto-package>.<Service>/<Method>", so this is the
+// one knob that decides what a cloudflare tunnel ingress rule must match:
+//
+//   path: ^/olign\.    ->  this service     (gRPC: /olign.Speech/Assess)
+//   path: ^/olign/    ->  REST + WebSocket (/olign/v0.9)
+//
+// The two are unambiguous: the literal '.' vs '/' after "olign" tells them
+// apart, and both read as the same product.
+//
+// olewave.olign.OlewaveSpeech (services.proto) is still served and unchanged --
+// existing clients (serve-olign, test/client.py, load_testing) keep working; new
+// clients should prefer this one. Both are the same assessment, same core.
+
+syntax = "proto3";
+
+import "services.proto";
+
+package olign;
+
+service Speech {
+  // Bidirectional stream, identical semantics to
+  // olewave.olign.OlewaveSpeech/StreamingInference:
+  //   * the first request carries assessment_config.json_config, no audio;
+  //   * every later request carries audio_content: headerless little-endian
+  //     int16 PCM @ 16 kHz mono, ~100 ms per message;
+  //   * responses carry json_output; the server may emit the final result early
+  //     when the decoder endpoints (VAD), after which stop sending.
+  rpc Assess(stream olewave.olign.StreamingInferenceRequest)
+      returns (stream olewave.olign.StreamingInferenceResponse);
+}

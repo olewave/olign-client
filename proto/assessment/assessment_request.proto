@@ -1,0 +1,508 @@
+syntax = "proto3";
+
+// import "common_types.proto";
+
+package olewave.olign;
+
+// Stores messages related to the request (assessment input interface)
+
+
+// App config in response.params.app
+//
+// Next ID: 6
+message AppConfig {
+  // 授权账号
+  string application_id = 1;
+
+  // 用户标识
+  string user_id = 2;
+
+  // start时间
+  string timestamp = 3;
+
+  // 校验码
+  string sig = 4;
+
+  // 算法？
+  string alg = 5;
+}
+
+// 音频信息, response.params.audio
+//
+// Next ID: 5
+message AudioConfig {
+  // 采样率 (set to 16000 Hz)
+  int32 sample_rate = 1;
+
+  // 声道 (set to 1)
+  int32 channel = 2;
+
+  // 每采样字节数，支持双字节
+  int32 sample_bytes = 3;
+
+  // 音频格式
+  string audio_type = 4;
+}
+
+
+// 音频质量, 详情请参考tipId字段说明
+// https://shimo.im/docs/rgTHkXrj6HkvhWXr
+message TipId {
+  enum Kind {
+    // normal
+    NORMAL = 0;
+
+    // 音频数据为0
+    EMPTY_AUDIO = 10000;
+
+    // 用户发音不完整，如”i want an apple”，可能只发了”i want an”
+    INCOMPLETE_AUDIO = 10001;
+
+    // 识别不完整，出现这种情况大部分是静音，及音频偏短
+    SIL_SHORT_AUDIO = 10002;
+
+    // 识别不完整，出现这种情况大部分是静音，及音频偏短
+    INCOMPLETE_RECOGNISED = 10003;
+
+    // 音量偏低，可能位置太远
+    LOW_VOLUME = 10004;
+
+    // 音频截幅，可能位置太近
+    HIGH_VOLUME = 10005;
+
+    // 音频质量偏差（由录音环境嘈杂或语音不明显引起的信噪比低）
+    POOR_QUALITY = 10006;
+
+    // 在开启“非英文过滤”功能时，检测到用户语音为非英文
+    NON_ENGLISH = 10007;
+  }
+}
+
+
+// 常用错误码总结
+// http://doc.api.chivox.com/api/index.php?s=/10&page_id=110
+//
+// NExt ID:
+message ErrorId {
+  enum Kind {
+    // Success
+    SUCCESS = 0;
+
+    // param参数非json格式, identical to 60001
+    PARAM_NOT_JSON_FORMAT = 1;
+
+    // 音频长度为0，无法解析音频
+    EMPTY_AUDIO = 2;
+
+    // 使用云服务，无audioType(音频格式)参数, identical to 60003
+    INVALID_AUDIO_TYPE = 3;
+
+    // 使用云服务，声道数(channel)设置错误, identical to 60005
+    ILLEGAL_CHANNEL_SIZE = 5;
+
+    // 内核内部原因
+    INTERNAL_ERROR = 5501;
+
+    // 音频为噪声，杂音，静音。没有有效语音。
+    INVALID_AUDIO = 10000;
+
+    // 音频为纯噪声或者音频中的发音和refText差别较大
+    MISMATCH_AUDIO_REFTEXT = 10001;
+
+    // 初始化引擎或发起评测请求时未添加必要的参数信息
+    MISSING_PARAMS = 40001;
+
+    // sdk和服务端的加密不兼容，或者sdk未发送json
+    INCOMPATIBLE_ENCRYPTING = 41001;
+
+    // 没有必需的param项
+    MISSING_REQUIRED_PARAMS = 41004;
+
+    // 没有传输音频格式
+    MISSING_AUDIO_FORMAT = 41007;
+
+    // 传输的音频格式不支持
+    UNSUPPORTED_AUDIO_FORMAT = 41008;
+
+    // 音频信息中的sampleRate不存在
+    INVALID_SAMPLE_RATE = 41009;
+
+    // 音频信息中的channel不存在或不支持（只支持1）
+    INVALID_CHANNEL_SIZE = 41010;
+
+    // 音频信息中的sampleBytes不存在或不支持（只支持1和2）
+    INVALID_SAMPLE_BYTES = 41011;
+
+    // 参数中没有audio信息
+    NO_AUDIO_INFO = 41012;
+
+    // request中的信息不合法
+    ILLEGAL_REQUEST = 41014;
+
+    // auth验证未通过，看相关授权是否合法或过期
+    FAILED_AUTH = 41030;
+
+    // 开始评测请求时传入的param参数有错误
+    INVALID_PARAMS = 60000;
+
+    // param参数非json格式
+    PARAMS_NOT_JSON_FORMAT = 60001;
+
+    // 使用本地服务，param中无request参数
+    LOCAL_MISSING_REQUEST_PARAMS = 60002;
+
+    // 使用云服务，无audioType(音频格式)参数
+    CLOUD_MISSING_AUDIO_TYPE = 60003;
+
+    // 使用云服务，采样率(sampleRate)设置错误
+    CLOUD_ILLEGAL_SAMPLE_RATE = 60004;
+
+    // 使用云服务，声道数(channel)设置错误
+    CLOUD_ILLEGAL_CHANNEL_SIZE = 60005;
+
+    // 使用云服务，采样字节数(sampleBytes)设置错误
+    CLOUD_ILLEGAL_SAMPLE_BYTES = 60006;
+
+    // 使用本地服务，设置的coreType不存在
+    LOCAL_CORETYPE_NOT_EXIST = 60007;
+  }
+}
+
+//
+// 以下为内部使用的class定义
+//
+
+// Info about the error id and message
+//
+// Next ID: 3
+message ErrorInfo {
+  // Error id
+  ErrorId.Kind err_id = 1;
+
+  // Error message
+  string error = 2;
+}
+
+
+// User Id info
+//
+// Next ID: 7
+message UserInfo {
+  // 用户标识
+  string user_id = 1;
+
+  // 授权账号
+  string application_id = 2;
+
+  // 用户请求唯一标识 (only used in response)
+  string token_id = 3;
+
+  // 音频及数据对应的唯一标识 请保存到产品数据库,方便排查问题
+  string uuid = 4;
+
+  // 音频及数据对应的唯一标识，兼容性保留, 请保存到产品数据库,方便排查问题
+  string record_id = 5;
+
+  // 校验码
+  string sig = 6;
+}
+
+
+// Rank
+//
+// Next ID: 3
+message Rank {
+  enum Kind{
+    // 0-4
+    FOUR = 0;
+
+    // 0-100
+    ONE_HUNDRED = 1;
+  }
+}
+
+
+// 评测类别：单词/句子/段落
+//
+// Next ID: 6
+message CoreType {
+  enum Kind{
+    // 英文单词评测
+    WORD_SCORE = 0;
+
+    // 英文单词纠音评测
+    WORD_PRON = 1;
+    
+    // 英文句子评测
+    SENT_SCORE = 2;
+
+    // 英文句子纠音评测
+    SENT_PRON = 3;
+
+    // 段落朗读评测
+    PRED_EXAM = 4;
+
+    // 对齐：Only phone-level alignment
+    PHONE_ALIGN = 5;
+
+    // 对齐：word-level alignment
+    WORD_ALIGN = 6;
+  }
+}
+
+// Accent
+//
+// Next ID: 3
+message Accent{
+  enum Kind{
+    // Not defined
+    NOT_DEFINED = 0;
+
+    // British english
+    BRITISH = 1;
+
+    // US english
+    AMERICAN = 2;
+
+    // Latam english
+    LATAM = 3;
+  }
+}
+
+// Precision setting
+message Precision {
+  enum Kind {
+    // value = 1
+    ONE = 0;
+
+    // value = 0.5
+    ONE_HALF = 1;
+  }
+}
+
+// IPA output format
+message IPA {
+  enum Kind {
+    // default
+    IPA_HAOXUE = 0;
+
+    IPA63_UK = 1;
+
+    IPA88_UK = 2;
+
+    KK_US = 3;
+  }
+}
+
+// Word pronunciation
+// The phone list of a word
+// Used in customized pronunciation settings
+//
+// Next ID : 2
+message WordPronuncation {
+  // Phone list
+  repeated string phone_strs = 1;
+}
+
+// Word list
+// Customized word pronunciation of a given word
+// One word can have mutiple customized pronunciation
+//
+// Next ID: 3
+message WordList {
+  // Word string
+  string word = 1;
+
+  //  List of pronunciations of a word
+  repeated WordPronuncation pron = 2;
+}
+
+// 结果控制参数
+// 单词/句子评测的具体参数设置 response.params.request.result
+//
+// Next ID: 3
+message ParamsForWordSentenceModes {
+  reserved 1;
+
+  // The Detail of score options in word/sentence modes
+  ParamsForWordOrSentenceMode details = 2;
+}
+
+
+// 单词/句子评测，详细得分选项 response.params.request.result.details
+//
+// Next ID : 6
+message ParamsForWordOrSentenceMode {
+  // Show the orignal word format (1: show, 0: not show)
+  // 驰声最新版文档里已没有此参数
+  int32 raw = 1;
+
+  // Show symbols (1: show, 0: not show) 
+  // 驰声最新版文档里已没有此参数
+  int32 sym = 2;
+
+  // Return phone result (1: show, 0: not show) 
+  // 只用于句子模式
+  int32 phone = 3;
+
+  // 是否开启连读失爆检测，默认为0。
+  // 0: 不开启    1: 开启
+  // 只用于句子模式
+  int32 connti = 4;
+
+  // 打分松紧度调节开关,说明:
+  // 传参范围为[-1,1]，精度0.1。
+  // 传参为0和不传该参数一样，不对打分分数进行调整。
+  // 传参为正数，提高打分分数，传参越大提高的分数越多。
+  // 传参为负数，降低打分分数，传参越小降低的分数越多。
+  float gop_adjust = 5;
+}
+
+// 段落评测，返回结果详细设置 response.params.request.client_params
+//
+// Next ID 5
+message ParagraphResultSetting {
+ // 句子与单词评分是否启用4分制，1为启用，0为不启用，分制跟随rank，默认1
+ int32 ext_subitem_rank4 = 1;
+
+ // 是否启用单词详细得分，1为启用，0为不启用，默认0
+ int32 ext_word_details = 2;
+
+ // 是否启用实时返回句子得分，默认不启用，1为启用，0为不启用，默认0
+ int32 ext_cur_snt = 3;
+
+ // TODO: turn this off
+ // 总分松紧度调节开关,说明:
+ // 传参范围为[-1,1]，精度0.1。
+ // 传参为0和不传该参数一样，不对打分分数进行调整。
+ // 传参为正数，提高打分分数，传参越大提高的分数越多。
+ // 传参为负数，降低打分分数，传参越小降低的分数越多。
+ int32 gop_adjust = 4;
+}
+
+
+// Details of the request (as a json string) parsed from the client sdk.
+//
+// Next ID: 17
+message RequestDetails {
+  // Type of the assessment
+  string core_type = 1;
+
+  // US accent by default (value = 2)
+  int32 accent = 2;
+
+  // score rank, 4 or 100
+  int32 rank = 3;
+
+  // the text to be read (Default is empty)
+  string ref_text = 4;
+
+  // place holder for selecting resource on server
+  string res = 5;
+
+  // whether or not to return audio url (1: return, 0: not return)
+  // NOTE: proto3 will convert field names to lowercase
+  int32 attach_audio_url = 6;
+
+  // customized pronunciation
+  repeated WordList wordlist = 7;
+
+  reserved 8;
+
+  // Options of paragraph score output
+  // This is only optional for en.pred.exam mode
+  ParagraphResultSetting client_params = 9;
+
+  // 评分精度，支持1和0.5. Only used when coreType == en.pred.exam
+  int32 precision = 10;
+
+  // IPA输出格式
+  int32 ipa = 11;
+
+  // 用户请求唯一标识 (only used in response)
+  string token_id = 12;
+
+  // 好学新增字段：Type of algorithm used to compute oveall score:
+  // 0: non-linear mapping (default)
+  // 1: simple averaging over accuracy, integrity and fluency scores
+  int32 overall_score_mode = 13;
+
+  // 好学新增字段：Whether to display a compound phone (e.g. "t r") as an 
+  // entity in the output.
+  // 0: No (default). Then results of phones will be displayed separately.
+  // 1: Yes.
+  int32 show_compound_phones = 14;
+
+  // 浊化开关，可填0或1，默认是1。
+  // 值为0，表示用户发音浊化和非浊化都算正确。
+  // 值为1，表示用户发音必须浊化才算正确。
+  int32 voiced = 15;
+
+  // Options of word-mode score output (驰声新增)
+  // This is only optional for en.word.score mode
+  ParamsForWordSentenceModes result = 16;
+}
+
+
+// 声音检测功能
+//
+// Next ID: 4
+message VADSettings {
+  // 默认1（启动）
+  // 注意：需要在SDK端把参数默认值设为1，否则proto3会自动把它设为0 (protobuf整数类型的默认值）
+  // 并传回服务器端。
+  int32 vad_enable = 1;
+
+  // 设置音频 vad 延迟生效时长(单位:s)，
+  // 在刚开始录音的几秒内屏蔽 VAD
+  int32 ref_duration = 2;
+
+  // 灵敏度，单位 20ms，设置 N, 表示说话停止后 20*N 毫秒判定为结束
+  int32 speechLowSeek = 3;
+}
+
+// Streaming assessment configuration. The request json string will be 
+// deserialized into this class. It was StreamingInferenceConfig
+//
+// Next ID: 9
+message StreamingAssessmentConfig {
+  // Input audio info. Defined in base_types.proto
+  AudioConfig audio = 1;
+
+  // Details of the request from the client side
+  RequestDetails request = 2;
+
+  // Resource (not used in the response)
+  string core_provide_type = 3;
+
+  // app info
+  AppConfig app = 4;
+
+  // vad setting
+  VADSettings vad = 5;
+
+  // serial number (according to ITG example json)
+  string serial_number = 6;
+
+  // return sound intensity?
+  int32 sound_intensity_enable = 7;
+
+  // 音频及数据对应的唯一标识，兼容性保留, 请保存到产品数据库,方便排查问题
+  string record_id = 8;
+
+  // For assessment, if true we will return each **finalized** segment just once, 
+  // and the requester should concatenate segments received from the streaming responses.
+  //
+  // Default is false (Recognition), which means we return all the segment
+  //  inferenced so far in every response.
+  // For assessment, this should be set as true.
+  // For recognition, this can be set to be true or false.
+  // bool return_finalized_segment_once = 6;
+
+  // If true, run end point detection
+  // Default: false.
+  // bool enable_end_point_detection = 7;
+
+  // Frame step size in ms (Default is 10)
+  // int32 frame_step_size = 8;
+}

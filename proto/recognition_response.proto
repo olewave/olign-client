@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+import "common_types.proto";
+import "assessment_request.proto";
+
+package olewave.olign;
+
+// NOTE: NOT USED FOR ASSESSMENT
+// Inference results for a one segment. A segment can contain just a word,
+// a sentence, or a paragraph.
+// TODO: modify this according to Chivox output format
+//
+// RecognizedSegment
+// Next ID: 8
+message RecognizedSegment {
+  // index of the segment, starting from 0
+  int32 segment_index = 1;
+
+  // All alternatives, ordered by likelihood from high to low. The first one
+  // is the best. The returned result will contain at least one result,
+  // which may be empty if the whole segment is regarded as silence or noise.
+  // For recognition (RESERVED), there is one (Default) or more than one result.
+  // Note that "repeated" keyword cannot work with "oneof".
+  repeated SegmentHypothesis hypothesis = 2;
+
+  // If is_final is set, the result will not be changed further.
+  bool is_final = 5;
+
+  // The time range of this segment.
+  int32 from_msec = 6;
+  int32 to_msec = 7;
+}
+
+// One inferenced result on a segment.
+// TODO: modify this according to Chivox output format
+//
+// Next ID: 7
+message SegmentHypothesis {
+  // Reference text
+  // For assessment, this is what the speaker is supposed to read
+  // For recognition (RESERVED), this should be empty 
+  string ref_transcript = 1;
+
+  // Hypothesis text: what the user actually speak based on inference
+  // In assessment, user may insert, delete, or substitute words while reading
+  // the reference text
+  string hyp_transcript = 2;
+
+  // // Information of words in the segment
+  // // It stores the dd and hypothesis results
+  // repeated WordPair words = 3;
+
+  // For recognition (RESERVED), this is confidence score of hyp_transcript.
+  // The range is in [0 1].
+  float confidence = 6;
+}
