@@ -19,7 +19,7 @@ the client against the live service.
 ## How the two repos stay in step
 
 olign-client and olign are separate repos, so nothing structurally forces them
-together. Three things keep them aligned, weakest to strongest:
+together. These keep them aligned, weakest to strongest:
 
 1. **The `X.Y` is the API version.** The server serves its routes under
    `/olign/vX.Y`, so client release line `X.Y` targets server `X.Y` — the URL
@@ -32,16 +32,14 @@ together. Three things keep them aligned, weakest to strongest:
    this branch was verified against, committed alongside the code and auditable
    in git — the same idea as olign pinning pkaldi via `PKALDI_VERSION`.
 
-3. **The drift check** — `./tools/check_proto_sync.sh`. The `proto/` files here
-   are a *vendored copy* of olign's `src/io/proto`, so they can silently drift.
-   The script fetches olign at `OLIGN_VERSION` and diffs; drift is an error.
-   Runs in CI (`proto-sync`) on every push and tag.
+3. **The drift check.** The `proto/` files here are a *vendored copy* of olign's
+   protos, so they can silently drift. Olewave checks them against olign at
+   `OLIGN_VERSION` before each release.
 
-4. **The contract test** — CI job `contract-test` runs the actual
-   `olign:$OLIGN_VERSION` image as a service and drives a real assessment
-   through `examples/rest_client.sh`, asserting the scorecard (7 words, overall
-   87, wavetime 4480). Text-identical protos can still hide a behavioural break; this catches
-   that. It is the strongest of the four.
+4. **The contract test.** `examples/rest_client.sh` against the live v0.9
+   endpoint must give the known scorecard for `examples/short1.wav` (7 words,
+   overall 87, wavetime 4480; see the README's Tests). Text-identical protos can
+   still hide a behavioural break; this catches it.
 
 5. **The runtime handshake** — at request time the client sends
    `X-Olign-Client-Version` and the server answers with `X-Olign-Api-Version`.
@@ -87,7 +85,7 @@ have given.
 2. Update `OLIGN_VERSION` if the v0.9 contract moved (it stays `v0.9.0` for
    v1.0, see above), re-copy `proto/` if the server's changed, re-run
    `./gen_stubs.sh`, update the endpoint/URL in `README.md` if `X.Y` moved.
-3. `./tools/check_proto_sync.sh` must pass.
+3. Check `proto/` against olign at the pinned release.
 4. Smoke-test the examples against the live API.
 5. Update this table, commit, then branch/tag:
    `git checkout -b 1.0 main && git tag v1.0.0 && git push -u origin 1.0 v1.0.0`
