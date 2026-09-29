@@ -1,0 +1,6 @@
+# gRPC client + stub generation (examples/grpc_client.py, gen_stubs.sh)
+grpcio>=1.28
+grpcio-tools>=1.28
+protobuf>=3.11
+# WebSocket client (examples/ws_client.py)
+websocket-client>=1.0

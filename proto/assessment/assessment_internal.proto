@@ -1,0 +1,716 @@
+syntax = "proto3";
+
+import "common_types.proto";
+
+package olewave.olign;
+
+// IPA符号
+//
+// Next ID: 4
+message IPASymbol {
+  // Haoxue (??)
+  string haoxue_ipa = 1;
+
+  // IPA63 (UK)
+  string uk_ipa63 = 2;
+
+  // IPA88 (UK)
+  string uk_ipa88 = 3;
+
+  // K.K. (US)
+  string us_kk = 4;
+}
+
+// Stores messages related to the internal data (data structure)
+
+// 单词，句子评测中的字母簇中的某一个音素对应的信息
+// 
+// Next ID: 6
+message PhoneToLetter {
+  // IPA phone
+  string ipa = 2;
+
+  // phone group the IPA phones in one segment
+  repeated string phone_group = 3;
+
+  // 字母簇 letters correspond to this phone
+  // note one phone can correspond to one or multiple letters
+  string letters = 4;
+
+  // the ordinal of phone in phones that this phone is in
+  // note that one letter can correspond to one or multiple phones
+  // It can be one `char` corresponds to multiple letters, e.g.: 
+  // phone 'ay' correspond to 'i' in bike, the items are ('i', ['ay'], 1).
+  // It can alse be multiple `char`s correspond to one letter,
+  // e.g.: the first phone 'b' in word 'bbq', the items are:
+  // ('b_B', 'b', ['b', 'iy'], 'b', 1)
+  // ('iy_I', 'iy', ['b', 'iy'], 'b', 2)
+  int32 phone_ordinal = 5;
+}
+
+// A pronunciation of the word
+// 
+// the size of the phone_ids and phone_to_letters are the same 
+// 
+// Next ID: 4
+message PronunciationItem {
+  // phone ids
+  repeated int32 phone_ids = 1;
+
+  // phone to letter groups
+  repeated PhoneToLetter phone_to_letters = 2;
+}
+
+// Lexicon table
+// 
+// Next ID: 4
+message LexiconItem {
+  // word
+  int32 word_id = 1;
+
+  // hold US single/multiple pronunciations
+  repeated PronunciationItem us_pronunciations = 2;
+
+  // hold UK single/multiple pronunciations
+  repeated PronunciationItem uk_pronunciations = 3;
+}
+
+// The scores of phone
+// can be 0-100, or 0-4 
+//
+// Next ID: 4
+message PhoneScore {
+  // Overall score
+  float overall = 1;
+
+  // Reading accuracy/pronunciation score for phone, syllable, word, sentence, paragraph
+  // Note: maybe accuracy and pronuciaiton scores are different?
+  float pronunciation = 2;
+
+  // Log posterior probability
+  float log_posterior = 3;
+}
+
+// The scores of word
+// can be 0-100, or 0-4 
+//
+// Next ID: 5
+message WordScore {
+  // Overall score
+  float overall = 1;
+
+  // Reading accuracy/pronunciation score for phone, syllable, word, sentence, paragraph
+  // Note: maybe accuracy and pronuciaiton scores are different?
+  float pronunciation = 2;
+
+  float log_posterior = 3;
+
+  // Reserved for speed recognition
+  float confidence = 4;
+}
+
+// Phone info
+//
+// Next ID: 5
+message PhoneInfo {
+  // Phone string
+  string phone = 1;
+
+  // The beginning of the phone in milliseconds.
+  int32 from_msec = 2;
+
+  // The end of the phone in milliseconds.
+  int32 to_msec = 3;
+
+  // phone type
+  int32 phone_type = 4;
+}
+
+// Word-level inferenced result
+// TODO: modify this according to Chivox output format
+//
+// Next ID: 10
+message WordInfo {
+  // For assessment, it is reference word;
+  // in INSERTED case, it is empty.
+  // For recognition, it is empty.
+  string ref_word = 1;
+
+  // For assessment, it is hypothesized word;
+  // in SKIPPED case, it is empty
+  // in MISPRONOUNCED case, `hyp_word` could still be the same as `ref_word`.
+  // in pronounced not well case, `hyp_word` is the same as `ref_word`.
+  // For recognition, it is hypothesized word;
+  string hyp_word = 2;
+
+  // Information of phones in the word.
+  // For assessment, for SKIPPED word, it is empty;
+  // it stores the reference and hypothesis syllables
+  // For recognition, it is empty.
+  repeated PhoneInfo phones = 6;
+
+  // Word duration: the begin and end of the word in milliseconds.
+  int32 from_msec = 7;
+  int32 to_msec = 8;
+  
+  // Word score
+  WordScore score = 9;
+}
+
+// Mapping between original word and reference normalized word
+//
+// Next ID: 3
+message WordPair {
+  // Reference word
+  string orig_word = 1; // "Self-motivated"
+
+  // Group of reference (not hypothesized) normalized words after processing
+  repeated string ref_norm_words = 2;  // {"self, "motivated"}
+}
+
+
+// Start index and end index of a word in the text (as a character array).
+//
+// Next ID: 3
+message WordBoundaryIndices {
+  // start char index 
+  int32 begin_index = 1; 
+
+  // end char index
+  int32 end_index = 2;
+}
+
+// The scores of sentence, or paragraph
+// can be 0-100, or 0-4 
+//
+// Next ID: 8
+message SegmentScore {
+  // Overall score
+  float overall = 1;
+
+  // Reading accuracy/pronunciation score for phone, syllable, word, sentence, paragraph
+  // Note: maybe accuracy and pronuciaiton scores are different?
+  float accuracy = 2;
+
+  // How fluent the read sentence or graph is. Currently calculate as the 
+  // number of filler words (um, uh) over the number of words in `ref_transcript`.
+  float fluency = 3;
+
+  // How integral the read sentence or paragraph is. Currently calculated 
+  // by first running alignment of `ref_transcript` and `hyp_transcript`, 
+  // then calculate as the number of common words in the alignment over 
+  // the number of words in `ref_transcript`.
+  float integrity = 4;
+
+  // Reserved for paragraph assessment. The accuracy score for each segment of 
+  // a paragraph.
+  repeated float sentence_scores = 5;
+
+  // 语速，即每分钟读的单词数（比例值）(for sentence assessment)
+  int32 speed = 6;
+
+  // 停顿次数，间隔大于0.5秒算一次 (for sentence assessment)
+  int32 pause = 7; 
+}
+
+// // Trajectory's shape (Reserved)
+// //
+// // Next ID: 3
+// message Trajectory {
+//   // Note: now the a is set to be 10.0
+//   enum Shape {
+//     // If the start and end value are with in a% difference.
+//     FLAT = 0;
+//     // If the end value is more than a% than the start value.
+//     UP = 1;
+//     // If the end value is less than a% than the start value.
+//     DOWN = 2;
+//     // (TODO): any more ones, UP_THEN_DOWN? DOWN_THEN_UP, FLAT_THEN_UP, FLAT_THEN_TDOWN ?
+//   }
+// }
+
+// TODO: put all the alignment information (text, word indice ...) here
+// 以下为内部使用 Message classes
+// The alignment information on a segment, will NOT be sent to client.
+// Wei will modify this to replce the `PhoneAlternativeInfo` class in inferencer/lexicon.h
+//
+// Next ID: 17
+message SegmentAlignInfo {
+  // Information of words in the segment
+  // It stores the dd (what is this ??) and hypothesis results
+  repeated WordAlignInfo words = 1;
+
+  // Reserved 2, 3
+  
+  // Segment score
+  SegmentScore score = 4;
+
+  // For recognition (RESERVED), this is confidence score of hyp_transcript.
+  // The range is in [0 1].
+  float confidence = 5;
+
+  // Preprocessed transcript
+  string cleaned_text = 6;
+
+  // Mappings bewteen original word and cleaned words in the text
+  repeated WordPair word_pairs = 7;
+
+  // Start index and end index of a word in the text (as a character array)
+  repeated WordBoundaryIndices word_index_pairs = 8;
+
+  // Sentence break indices in terms of word index at the end of each *preprocessed* 
+  // reference sentence.
+  // e.g. ref_text = "How are you today? I am fine."
+  // the cleaned_text is "how are you today i am fine"
+  // The break indices are 3 and 6. The first segment ranges from 0-3, and 
+  // the second segment ranges from 4-6.
+  repeated int32 cleaned_sentence_break_indices = 9;
+
+  // segments of the reference text (used only in paragraph assessment)
+  repeated string ref_text_segments = 10;
+
+  // Sentence break indices in terms of hyp_word index at the end of each *original*
+  // sentence (see above)
+  repeated int32 ref_sentence_break_indices = 11;
+
+  // Indices of silence (<eps>)
+  repeated int32 silence_indices = 12;
+
+  // Number of words in the preprocessed reference text
+  int32 cleaned_ref_word_num = 13;
+
+  // Frame shift (msec) in pitch / MFCC features, default is 10 ms
+  int32 frame_shift_in_msec = 16;
+}
+
+// Alignment info of words.
+//
+// Next ID: 18
+message WordAlignInfo {
+  // For assessment, it is reference word;
+  // in INSERTED case, it is empty.
+  // For recognition, it is empty.
+  string ref_word = 1;
+
+  // For assessment, it is hypothesized word;
+  // in SKIPPED case, it is empty
+  // in MISPRONOUNCED case, `hyp_word` could still be the same as `ref_word`.
+  // in pronounced not well case, `hyp_word` is the same as `ref_word`.
+  // For recognition, it is hypothesized word;
+  string hyp_word = 2;
+
+  // If is_skipped is true, the speaker SKIPPED the `ref_word`;
+  // if is_inserted is true, the speaker INSERTED the `hyp_word`;
+  // if is_mispronouced is true, the speaker MISPRONOUNCED the `ref_word` as `hyp_word`;
+  // if all the 3 flags are false, the speaker PRONOUNCED the `ref_word`, but may not well 
+  // pronounced; the `ref_word` and the `hyp_word` are the same in this case.
+  // e.g., in the upper-level SegmentHypothesis.words, there are 4 elements:
+  //   #:     1     2     3     4
+  // Ref:    w1    w2          w4
+  // Hyp:          w2    w3    w5
+  // 
+  // w1 is skipped, w3 is inserted, w2 is pronounced, w4 is wrongly pronounced as w5.
+  //      #is_inserted #is_skipped  #is_mispronouced  #status
+  // w1:  false        true         false             skipped
+  // w2:  false        false        false             pronounced
+  // w3:  true         false        false             inserted
+  // w4:  false        false        true              mispronounced as w5
+  bool is_inserted = 3;         // Default: false
+  bool is_skipped = 4;          // Default: false
+  bool is_mispronouced = 5;     // Default: false
+
+  // Information of phones in the word.
+  // For assessment, for SKIPPED word, it is empty;
+  // it stores the reference and hypothesis syllables
+  // For recognition, it is empty.
+  repeated PhoneAlignInfo phones = 6;
+
+  // Word duration: the begin and end of the word in milliseconds.
+  int32 from_msec = 7;
+  int32 to_msec = 8;
+  
+  // Word score
+  WordScore score = 9;
+
+  // Word accent: UK:1, US:2, Either UK or US:3
+  int32 accent = 10;
+
+  // Syllable info
+  repeated SyllableAlignInfo syllables = 11;
+
+  // True stressed syllable index of hyp_word
+  int32 label_stress_pos = 12;
+
+  // Predicted stressed syllable index of hyp_word
+  // The value of -1 is used for single-syllable words, <eps> and <unk>
+  int32 pred_stress_pos = 13;
+
+  // The probability of the stressed syllable of hyp_word
+  float pred_stress_prob = 14;
+
+  // Flag to indicate if vowel(s) is misread
+  bool vowel_misread = 15;
+
+  // Flag to indicate if consonant(s) is misread
+  bool consonant_misread = 16;
+
+  // Flag to indicate if stress is wrong
+  bool is_lexical_stress_error = 17;
+}
+
+// Do not touch it, this is Reserved.
+// Syllable-level inferenced result for assessment only
+// Note: 1. prosody, including pitch, duration, and stress, is defined on the 
+// syllable level. 
+//       2. A speaker can pronounce a word in a non-canonical way.
+//       3. this is mainly used for addressing word-level mispronunciation issues
+//
+// Next ID: 17
+message SyllableAlignInfo {
+  // For assessment only, it is reference syllable;
+  // in INSERTED case, it is empty.
+  string ref_syllable = 1;
+
+  // For assessment only, it is hypothesized syllable; 
+  // in SKIPPED case, it is empty;
+  // in MISPRONOUNCED case, `hyp_syllable` should not be the same as `ref_syllable`;
+  // in pronounced not well case, `hyp_syllable` is the same as `ref_syllable`.
+  string hyp_syllable = 2;
+
+  // If is_skipped is true, the speaker SKIPPED the `ref_syllable`;
+  // if is_inserted is true, the speaker INSERTED the `hyp_syllable`;
+  // if is_mispronouced is true, the speaker MISPRONOUNCED the `ref_syllable` as `hyp_syllable`;
+  // if all the 3 flags are false, the speaker PRONOUNCED the `ref_syllable`, but may not well 
+  // pronounced; the `ref_syllable` and the `hyp_syllable` are the same in this case.
+  // e.g., in the upper-level WordInfo.syllables, there are 4 elements:
+  //   #:     1     2     3     4
+  // Ref:    s1    s2          s4
+  // Hyp:          s2    s3    s5
+  // 
+  // s1 is skipped, s3 is inserted, s2 is pronounced, s4 is wrongly pronounced as s5.
+  //      #is_inserted #is_skipped  #is_mispronouced  #status
+  // s1:  false        true         false             skipped
+  // s2:  false        false        false             pronounced
+  // s3:  true         false        false             inserted
+  // s4:  false        false        true              mispronounced as s5
+  bool is_inserted = 3;         // Default: false
+  bool is_skipped = 4;          // Default: false
+  bool is_mispronouced = 5;     // Default: false
+
+  // Information of phones in the syllable.
+  // For assessment, for a SKIPPED syllable, it is empty.
+  // For recognition, it is empty.
+  repeated PhoneInfo phones = 6;
+
+  // Syllable duration: the begin and end of the phone in milliseconds
+  int32 from_msec = 7;
+
+  int32 to_msec = 8;
+
+  // Reference stress of the syllable.
+  bool is_ref_stress = 9;
+
+  // Hypothesized stress of the syllable.
+  bool is_hyp_stress = 10;
+
+  // this is Pearson's r score of the MISPRONOUNCED or 
+  // not well pronounced syllables;
+  // for SKIPPED and INSERTED cases, the score is always 0.
+  // The range is in [0 1].
+  float confidence = 11;
+
+  // Statistics of the syllable
+  // Trajectory.Shape shape = 12;
+
+  // Analysis information of the syllables
+  // FrameInfo mean_analysis = 13;
+
+  // Syllable nuclei (vowel) duration: the begin and end of the phone in milliseconds
+  int32 nuclei_from_msec = 14;
+
+  int32 nuclei_to_msec = 15;
+
+  // Mean pitch of a syllable over that of a word
+  float relative_mean_pitch = 16;
+}
+
+// 
+
+// For assessment only, saves statistics of phone
+//
+// Next ID: 5
+message PhoneAlignStat {
+  // log posterior
+  float log_posterior = 1;
+
+  // Frame information of the phone. The size is 
+  // (to_msec - from_msec) / StreamingInferenceConfig.frame_step_size;
+  repeated FrameAlignInfo frames = 2;
+
+  // Phone scores
+  PhoneScore score = 3;
+}
+
+
+// Phone-level information of inferenced result for assessment only
+// Wei will modify it.
+//
+// Next ID: 18
+message PhoneAlignInfo {
+  // This indicate the position of ref_phone in PronunciationItem
+  int32 ref_pronunciation_pos = 1;
+
+  // Reserved 2,3,4,5
+
+  // For assessment only, it is reference phone; in INSERTED case, it is empty.
+  string ref_phone = 6;
+
+  // For assessment only, it is hypothesized phone; in SKIPPED case, it is empty.
+  string hyp_phone = 7;
+
+  // the reference phone's index in phone_states
+  int32 ref_id = 8;
+
+  // the statistics of alternative phones
+  repeated PhoneAlignStat phone_stats = 9;
+  
+  // Reserved, phone to grapheme mapping should be put here
+
+  // If is_skipped is true, the speaker SKIPPED the `ref_phone`;
+  // if is_inserted is true, the speaker INSERTED the `hyp_phone`;
+  // if is_mispronouced is true, the speaker MISPRONOUNCED the `ref_phone` as `hyp_phone`;
+  // if all the 3 flags are false, the speaker PRONOUNCED the `ref_phone`, but may not well 
+  // pronounced; the `ref_phone` and the `hyp_phone` are the same in this case.
+  // e.g., in the upper-level SyllableInfo.phones, there are 4 elements:
+  //   #:     1     2     3     4
+  // Ref:    p1    p2          p4
+  // Hyp:          p2    p3    p5
+  // 
+  // p1 ip skipped, p3 is inserted, p2 is pronounced, p4 is wrongly pronounced as p5.
+  //      #is_inserted #is_skipped  #is_mispronouced  #status
+  // p1:  false        true         false             skipped
+  // p2:  false        false        false             pronounced
+  // p3:  true         false        false             inserted
+  // p4:  false        false        true              mispronounced as p5
+  bool is_inserted = 10;         // Default: false
+  bool is_skipped = 11;          // Default: false
+  bool is_mispronouced = 12;     // Default: false
+
+  // Phone duration: the begin and end milliseconds the phone.
+  int32 from_msec = 13;
+  int32 to_msec = 14;
+  
+  // Analysis information of the phone
+  // FrameAlignInfo frame_mean = 15;
+
+  // Pitch trajectory’s kind, maybe be put in Segment
+  // Trajectory.Shape pitch_trajectory_shape = 16;
+
+  // intensity trajectory's
+  // Trajectory.Shape intensity_trajectory_shape = 17;
+
+  // Phone scores
+  PhoneScore score = 15;
+
+  // 音素类型 0: consonant, 1: vowel, 2: other phones (e.g. sil, oov, etc)
+  int32 type = 16;
+
+  // Whether it is the start(head) phone of a compound phone. 
+  // There are 7 compound phones in American English pronunciation dict (K.K.):
+  // "d r", "d z", "t s", "t r", "eh r", "uh r", "ih r".
+  // Note that each compound phone contains two individual phones.
+  bool is_compound_head = 17;
+}
+
+// Frame information of inferenced result for assessment only
+// Possibly adding formants in the future
+// Wei will modify it.
+// 
+// Next ID: 4
+message FrameAlignInfo {
+  // log posterior logP(phone|x_i) (Default: 0.0)
+  float log_posterior = 1;
+
+  // Pitch value (Default: 0.0)
+  float pitch = 2;
+
+  // Intensity, currently uses normalized log energy value (Default: 0.0)
+  float intensity = 3;
+}
+
+// Fluency features
+// Store the fluency info of a given SegmentAlignInfo
+// This is for internal use to compute fluency score
+//
+// Next ID: 9
+message FluencyFeats{
+  // non silence ratio, non-silence duration / total duration
+  float non_sil_ratio = 1;
+
+  // Articulation rate, number of syllable / total non-silence duration
+  float articulation_rate =2;
+  
+  // Speech rate, number of syllables / total duration
+  float speech_rate = 3;
+  
+  // Average silence duration
+  float avg_sil_dur = 4;
+  
+  // Average consecutive non-silence duration
+  float avg_consecutive_dur = 5;
+  
+  // Max duration of a syllable
+  float max_syllable_dur = 6;
+  
+  // Max silence duration
+  float max_sil_dur = 7;
+  
+  // Max silence duration / articulation rate
+  float max_sil_per_ar = 8;
+}
+
+
+// Features for computing word scores
+// 计算单词分数所需要的特征
+// 
+// Next ID: 12
+message WordScoreFeats{
+  // 单词是否是生词<unk>
+  bool unk_flag = 1;
+
+  // 这个单词所有音素平均的正确发音后验概率
+  float avg_phone_lpp = 2;
+
+  // 单词的音素个数
+  int32 phone_count = 3;
+
+  // 单词元音个数
+  int32 vowel_count = 4;
+
+  // 单词所有元音平均正确发音后验概率
+  float avg_vowel_lpp = 5;
+
+  // 单词所有元音的最小正确发音后验概率
+  float min_vowel_lpp = 6;
+
+  // 单词所有元音的最大正确发音后验概率
+  float max_vowel_lpp = 7;
+
+  // 单词辅音个数
+  float consonant_count = 8;
+
+  // 单词所有辅音平均正确发音后验概率
+  float avg_consonant_lpp = 9;
+
+  // 这个单词所有辅音的最小正确发音后验概率
+  float min_consonant_lpp = 10;
+  
+  // 这个单词所有辅音的最大正确发音后验概率
+  float max_consonant_lpp = 11;
+}
+
+// Features for computing phone scores
+// 计算音素分数所需要的特征
+// 
+// Next ID: 5
+message PhoneScoreFeats{
+
+  //  音素是否是oov
+  bool oov_flag = 1;
+
+  // 这个音素所有音的后验概率
+  repeated float alternative_lpp = 2;
+
+  // 这个音素的id
+  int32 phone_id = 3;
+
+  // 参照音素与各个音素后验概率的比例
+  repeated float alternative_lpr = 4;
+}
+
+// 单词读错类型
+//
+// Next ID: 
+message WordErrorType {
+  enum Kind{
+    // 英文单词评测
+    CORRECT = 0;
+
+    // 英文单词纠音评测
+    VOWEL = 1;
+    
+    // 英文句子评测
+    CONSONANT = 2;
+
+    // 英文句子纠音评测
+    STRESS = 3;
+  }
+}
+
+// Syllable-level features for lexical stress model
+// These features are normalized within a word.
+//
+// Next ID: 19
+message LexicalStressFeats {
+  // intensity mean of a syllable
+  repeated float intensity_mean = 1;
+
+  // intensity max of a syllable
+  repeated float intensity_max = 2;
+
+  // intensity sum (~area) within a syllable
+  repeated float intensity_sum = 3;
+
+  // pitch mean of a syllable
+  repeated float pitch_mean = 4;
+
+  // pitch max of a syllable
+  repeated float pitch_max = 5;
+
+  // pitch sum (~area) within a syllable
+  repeated float pitch_sum = 6;
+
+  // differential pitch of a syllable as defined in Eq.(4a) of
+  // Li et al., Speech Communication 96 (2018) 28–36
+  repeated float pitch_diff = 7;
+
+  // duration of a syllable
+  repeated float syllable_duration = 8;
+
+  // duration of the syllable nuclei (i.e. vowel duration)
+  repeated float vowel_duration = 9;
+
+  // rank of intensity_mean (ascending manner) of the syllable 
+  // in a word. 1 corresponds to smallest intensity_mean.
+  repeated float rank_intensity_mean = 10;
+
+  // rank of intensity_max (ascending manner) of the syllable 
+  // in a word
+  repeated float rank_intensity_max = 11;
+
+  // rank of intensity_sum (ascending manner) of the syllable 
+  // in a word
+  repeated float rank_intensity_sum = 12;
+
+  // rank of pitch_mean (ascending manner) of the syllable 
+  // in a word
+  repeated float rank_pitch_mean = 13;
+
+  // rank of pitch_max (ascending manner) of the syllable 
+  // in a word
+  repeated float rank_pitch_max = 14;
+
+  // rank of pitch_sum (ascending manner) of the syllable 
+  // in a word
+  repeated float rank_pitch_sum = 15;
+
+  // rank of pitch_diff (ascending manner) of the syllable 
+  // in a word
+  repeated float rank_pitch_diff = 16;
+
+  // rank of syllable_duration (ascending manner) of the syllable in a word
+  repeated float rank_syllable_duration = 17;
+
+  // rank of vowel_duration (ascending manner) of the syllable in a word
+  repeated float rank_vowel_duration = 18;
+}

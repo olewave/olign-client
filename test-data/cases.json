@@ -1,0 +1,6 @@
+{
+  "short_flac_with_transcript":     {"audio": "ls_short.flac", "transcript": "ls_short.txt",  "seconds": 10.78,  "words": 29},
+  "medium_opus_with_transcript":    {"audio": "ls_medium.ogg", "transcript": "ls_medium.txt", "seconds": 56.11,  "words": 137},
+  "medium_opus_without_transcript": {"audio": "ls_medium.ogg", "transcript": null,            "seconds": 56.11},
+  "long_opus_with_transcript":      {"audio": "ls_long.ogg",   "transcript": "ls_long.txt",   "seconds": 204.43, "words": 554}
+}

@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package olewave.olign;
+
+// Auxilitary message for 0/1 messages
+//
+// Next ID: 3
+message ZeroOrOne {
+  enum Kind {
+    ZERO = 0; // zero
+    ONE = 1; // one
+  }
+}
+
+// Sample frequencies. Supported sample frequencies are listed in the enum.
+// For now we support 16k sample frequency only.
+message SampleFrequency {
+  enum Kind {
+    INVALID = 0;      // Invalid value
+    SF_16000_HZ = 1;  // 16k HZ.
+  }
+}
+
+
+// Audio format.
+//
+// Next ID: 3
+message AudioFormat {
+  enum Kind {
+    // Invalid audio format
+    INVALID = 0;
+    // 16 bit PCM, encoded as little endian signed integers. 
+    // audio conversion example:
+    //   int16_t *samples = reinterpret_cast<int16_t *>(audio_content.data());
+    LINEAR_PCM = 1;
+    // SPEEX input (Reserved)
+    SPEEX = 2;
+  }
+}
+
+// Audio channel
+//
+// Next ID: 3
+message AudioChannel {
+  enum Kind{
+    INVALID = 0; // Invalid channel value
+    SINGLE = 1;  // single channel
+  }
+}
+
+// Sample size.
+//
+// Next ID: 3
+message SampleByte {
+  enum Kind{
+    ONE = 0; // 1 byte
+    TWO = 1; // 2 bytes
+  }
+}
