@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Submit a recording to olign API v1 and wait for its word and phone timings.
 
-    export OLIGN_KEY=gvk_...        # https://tycho.olewave.com -> Profile -> API key
+    export OLIGN_KEY=gvk_...        # https://tycho.olewave.com -> Profile -> API keys
     python3 v1_client.py short1.wav --transcript short1.txt -o result.json
 
 The transcript is optional: without it, olign transcribes the audio itself.
@@ -54,8 +54,10 @@ def call(req: urllib.request.Request) -> tuple[dict, dict]:
             return json.loads(r.read()), versions
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")[:300]
-        hint = {401: " (check OLIGN_KEY)", 403: " (blocked by Cloudflare: send a User-Agent header)",
-                404: " (unknown job: the service may have restarted; resubmit)"}.get(e.code, "")
+        hint = {401: " (check OLIGN_KEY)", 402: " (out of credits: Billing on https://tycho.olewave.com)",
+                403: " (blocked by Cloudflare: send a User-Agent header)",
+                404: " (unknown job: the service may have restarted; resubmit)",
+                429: " (your monthly limit: Settings on https://tycho.olewave.com)"}.get(e.code, "")
         sys.exit(f"HTTP {e.code}{hint}: {detail}")
 
 
@@ -68,7 +70,7 @@ def main() -> None:
     ap.add_argument("--every", type=float, default=5.0, help="poll interval, seconds")
     a = ap.parse_args()
 
-    key = os.environ.get("OLIGN_KEY") or sys.exit("set OLIGN_KEY (https://tycho.olewave.com -> Profile -> API key)")
+    key = os.environ.get("OLIGN_KEY") or sys.exit("set OLIGN_KEY (https://tycho.olewave.com -> Profile -> API keys)")
     fields = [("audio", os.path.basename(a.audio), pathlib.Path(a.audio).read_bytes())]
     if a.transcript:
         fields.append(("transcript", os.path.basename(a.transcript), pathlib.Path(a.transcript).read_bytes()))
