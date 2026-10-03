@@ -1,12 +1,12 @@
 """Live checks against the olign API v1: each clip in test-data/cases.json goes
 through examples/v1_client.py and the answer is checked. Needs a key:
 
-    export OLIGN_KEY=gvk_...            # https://tycho.olewave.com -> Profile -> API key
+    export OLIGN_KEY=gvk_...            # https://tycho.olewave.com -> Profile -> API keys
     python3 -m unittest tests.test_v1_live -v
 
-Skipped without OLIGN_KEY. The four jobs run one after another on the server;
-allow about three minutes. One run sends 5.5 minutes of audio, which counts
-against the account's 60 minutes a day.
+Skipped without OLIGN_KEY. Allow about a minute. One run sends 5.5 minutes
+of audio: about 330 credits. A run the account cannot pay for, out of credits
+(402) or past its own monthly limit (429), is skipped, not failed.
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ class LiveV1(unittest.TestCase):
         if case.get("transcript"):
             cmd += ["--transcript", str(DATA / case["transcript"])]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
-        if r.returncode and "HTTP 429" in r.stderr:
-            self.skipTest("the account's 60 minutes for today are used up: " + r.stderr.strip().splitlines()[-1])
+        if r.returncode and ("HTTP 402" in r.stderr or "HTTP 429" in r.stderr):
+            self.skipTest("the account cannot spend more now: " + r.stderr.strip().splitlines()[-1])
         self.assertEqual(r.returncode, 0, r.stderr)
         st = json.loads(out.read_text())
 

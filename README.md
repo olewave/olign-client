@@ -26,12 +26,16 @@ end time and a 0–100 score.
 1. **Get an invitation code** from Olewave (info@olewave.com).
 2. **Sign up** at https://tycho.olewave.com: open the **Sign up** tab and enter
    your email, a password and the code.
-3. **Create your API key** under **Profile → API key**. It is shown once and it
-   identifies you, so keep it out of code you share:
+3. **Create an API key** under **Profile → API keys**, named after the server
+   that will use it. It is shown once and it identifies you, so keep it out of
+   code you share. You can hold several and revoke each on its own:
 
    ```bash
    read -rsp 'olign key: ' OLIGN_KEY && export OLIGN_KEY && echo
    ```
+
+4. **Add a card** under **Billing**. Saving it charges nothing and gives
+   10,000 free credits, about 2 h 46 min of audio; buy more there when needed.
 
 ### Call it
 
@@ -90,23 +94,26 @@ This prints the overall score and the weakest words, and writes
 
 | | |
 |---|---|
-| daily allowance | **60 minutes of audio per account per day** (UTC). A job counts as soon as it is accepted, failed ones too |
-| length | files up to 60 minutes; a job takes about 0.12× the audio length |
+| credits | **1 credit per second of audio**, rounded up per job; 1,000 credits = $1. A job is charged when it is accepted and refunded if it fails. Every response says what it cost and what is left: `X-Credits-Charged`, `X-Credits-Balance` |
+| monthly limit | optional, yours to set under **Settings**: once this month's usage reaches it, new jobs are refused (`429`) until the 1st (UTC) |
+| usage | per day and per API key on the dashboard's **Usage** page, or `GET https://tycho.olewave.com/v1/usage` with your key |
+| length | files up to 3 hours; a job takes about 0.06× the audio length |
 | size | 100 MB per upload. Compress long recordings, e.g. Opus at 32 kbit/s is ~14 MB an hour: `ffmpeg -i in.wav -ac 1 -c:a libopus -b:a 32k out.ogg` |
-| queue | jobs run one at a time; yours may wait as `queued` |
+| queue | several jobs run at once; yours may wait as `queued` |
 | your data | Olewave keeps your audio, transcript and results for your account, as the beta testing agreement says; ask info@olewave.com to delete them |
 | User-Agent | send your own: Cloudflare rejects some HTTP-library defaults (`403`, `error code: 1010`, e.g. Python's `urllib`) |
 
 | code | when |
 |---|---|
 | `202` | submitted; the body has `job_id` |
-| `401` | missing or invalid API key |
+| `401` | missing, invalid or revoked API key |
+| `402` | out of credits, or the recording is longer than your credits pay for (the message gives both lengths): add a card or buy credits under **Billing** |
 | `404` | unknown job id, one submitted with another key, or a job still running when the service restarted: resubmit (finished jobs survive restarts) |
 | `411` | no `Content-Length` (a chunked upload) |
-| `413` | over 100 MB, or longer than a day's allowance; `audio_seconds` in the body is the recording's length |
+| `413` | over 100 MB, or longer than 3 hours; `audio_seconds` in the body is the recording's length |
 | `415` | not `multipart/form-data` |
 | `422` | no part named `audio` |
-| `429` | today's 60 minutes are used up, or the recording is longer than what is left of them; `Retry-After` gives the seconds until 00:00 UTC |
+| `429` | your monthly limit is reached, or the recording is longer than what is left of it; `Retry-After` gives the seconds until the 1st, 00:00 UTC. The limit is yours: raise or remove it under **Settings** |
 
 A job can also end with `"state": "failed"`; `log_tail` says why.
 
@@ -246,7 +253,7 @@ been re-measured so far.
 | test | needs | checks |
 |---|---|---|
 | `python3 -m unittest tests.test_v1_offline -v` | nothing | `examples/v1_process.py` on the sample result: summary, CSVs, and TextGrid tiers with no gaps or overlaps |
-| `python3 -m unittest tests.test_v1_live -v` | `OLIGN_KEY` | every clip in `test-data/` through the v1.0 API: the length, that nearly every word comes back spoken, times in order and inside the audio, every phone inside its word, scores 0–100, and that `v1_process.py` reads the result. About 3 minutes, and 5.5 minutes of your daily allowance |
+| `python3 -m unittest tests.test_v1_live -v` | `OLIGN_KEY` | every clip in `test-data/` through the v1.0 API: the length, that nearly every word comes back spoken, times in order and inside the audio, every phone inside its word, scores 0–100, and that `v1_process.py` reads the result. About a minute, and 5.5 minutes of audio: about 330 credits |
 | the `rest_client.sh` call above | the service token | the v0.9 endpoint: `short1.wav` with `en.word.score` must give `overall=87  words=7  wavetime=4480 (ms)` |
 
 [`test-data/`](test-data/) holds three LibriSpeech recordings with their
