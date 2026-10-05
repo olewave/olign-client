@@ -5,8 +5,9 @@ through examples/v1_client.py and the answer is checked. Needs a key:
     python3 -m unittest tests.test_v1_live -v
 
 Skipped without OLIGN_KEY. Allow about a minute. One run sends 5.5 minutes
-of audio: about 330 credits. A run the account cannot pay for, out of credits
-(402) or past its own monthly limit (429), is skipped, not failed.
+of audio in four jobs: 18 credits at the launch price, 21 after. A run the
+account cannot pay for, out of credits (402) or past its own monthly limit
+(429), is skipped, not failed.
 """
 
 from __future__ import annotations

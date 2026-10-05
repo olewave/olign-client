@@ -24,8 +24,8 @@ end time and a 0–100 score.
 ### Set up
 
 1. **Get an invitation code** from Olewave (info@olewave.com).
-2. **Sign up** at https://tycho.olewave.com: open the **Sign up** tab and enter
-   your email, a password and the code.
+2. **Sign up** at https://tycho.olewave.com/#signup with your email, a
+   password and the code.
 3. **Create an API key** under **Profile → API keys**, named after the server
    that will use it. It is shown once and it identifies you, so keep it out of
    code you share. You can hold several and revoke each on its own:
@@ -35,7 +35,8 @@ end time and a 0–100 score.
    ```
 
 4. **Add a card** under **Billing**. Saving it charges nothing and gives
-   10,000 free credits, about 2 h 46 min of audio; buy more there when needed.
+   3,000 free credits, 1,000 minutes of audio at the launch price; buy more
+   there when needed.
 
 ### Call it
 
@@ -94,7 +95,7 @@ This prints the overall score and the weakest words, and writes
 
 | | |
 |---|---|
-| credits | **1 credit per second of audio**, rounded up per job; 1,000 credits = $1. A job is charged when it is accepted and refunded if it fails. Every response says what it cost and what is left: `X-Credits-Charged`, `X-Credits-Balance` |
+| credits | **3.5 credits per minute of audio**, 3 during the launch promotion, rounded up per job; 1,000 credits = $1, so an hour costs $0.21 ($0.18 during the promotion). A job is charged when it is accepted and refunded if it fails. Every response says what it cost and what is left: `X-Credits-Charged`, `X-Credits-Balance` |
 | monthly limit | optional, yours to set under **Settings**: once this month's usage reaches it, new jobs are refused (`429`) until the 1st (UTC) |
 | usage | per day and per API key on the dashboard's **Usage** page, or `GET https://tycho.olewave.com/v1/usage` with your key |
 | length | files up to 3 hours; a job takes about 0.06× the audio length |
@@ -253,7 +254,7 @@ been re-measured so far.
 | test | needs | checks |
 |---|---|---|
 | `python3 -m unittest tests.test_v1_offline -v` | nothing | `examples/v1_process.py` on the sample result: summary, CSVs, and TextGrid tiers with no gaps or overlaps |
-| `python3 -m unittest tests.test_v1_live -v` | `OLIGN_KEY` | every clip in `test-data/` through the v1.0 API: the length, that nearly every word comes back spoken, times in order and inside the audio, every phone inside its word, scores 0–100, and that `v1_process.py` reads the result. About a minute, and 5.5 minutes of audio: about 330 credits |
+| `python3 -m unittest tests.test_v1_live -v` | `OLIGN_KEY` | every clip in `test-data/` through the v1.0 API: the length, that nearly every word comes back spoken, times in order and inside the audio, every phone inside its word, scores 0–100, and that `v1_process.py` reads the result. About a minute, and 5.5 minutes of audio in four jobs: 18 credits at the launch price, 21 after |
 | the `rest_client.sh` call above | the service token | the v0.9 endpoint: `short1.wav` with `en.word.score` must give `overall=87  words=7  wavetime=4480 (ms)` |
 
 [`test-data/`](test-data/) holds three LibriSpeech recordings with their
