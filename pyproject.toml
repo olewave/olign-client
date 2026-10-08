@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "olign"
 dynamic = ["version"]
 description = "Word and phone timestamps for English speech, from the Olign forced alignment API"
-readme = "README.md"
+readme = "PYPI.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -27,6 +27,8 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://olewave.com"
+Documentation = "https://developers.olewave.com"
+Leaderboard = "https://developers.olewave.com/leaderboard/"
 Source = "https://github.com/olewave/olign-client"
 Cookbook = "https://github.com/olewave/olign-cookbook"
 Benchmark = "https://github.com/olewave/fa-bench"
