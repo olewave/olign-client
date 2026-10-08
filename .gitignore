@@ -10,3 +10,8 @@ token.txt
 *token*.txt
 *.secret
 .env
+
+# python -m build / pip install .
+build/
+dist/
+*.egg-info/

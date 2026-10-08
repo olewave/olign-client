@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "olign"
+dynamic = ["version"]
+description = "Word and phone timestamps for English speech, from the Olign forced alignment API"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Olewave, LLC", email = "info@olewave.com" }]
+keywords = ["forced alignment", "word timestamps", "speech", "TextGrid", "Praat", "subtitles", "SRT", "WebVTT"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://olewave.com"
+Source = "https://github.com/olewave/olign-client"
+Cookbook = "https://github.com/olewave/olign-cookbook"
+Benchmark = "https://github.com/olewave/fa-bench"
+
+[project.scripts]
+olign = "olign.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "olign.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+olign = ["py.typed"]
