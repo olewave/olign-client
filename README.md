@@ -59,6 +59,13 @@ this repo. It needs no account.
 olign export examples/sample_v1_result.json --textgrid --csv
 ```
 
+Press Ctrl-C while `olign align` waits and the job keeps running on the
+server. `olign get` picks it up by the id that `align` printed.
+
+```bash
+olign get 6abb52b92239acba --textgrid
+```
+
 ### Align from Python
 
 `olign.Client` submits the job and polls it until the words are ready.

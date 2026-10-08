@@ -183,6 +183,10 @@ class Arguments(unittest.TestCase):
         self.assertEqual([m for _, m in cli.outputs(a, "talk")], ["to_vtt", "to_csv", "to_json"])
         self.assertTrue(a.quiet)
 
+    def test_get_names_files_after_the_job(self):
+        a = self.parse("get", "abc123", "--vtt")
+        self.assertEqual(cli.outputs(a, a.job_id), [(pathlib.Path("abc123.vtt"), "to_vtt")])
+
     def test_export_has_no_json_flag(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             self.parse("export", "r.json", "--json")
@@ -367,6 +371,15 @@ class RoundTrip(unittest.TestCase):
             self.assertIn("olign: running 50%", err.getvalue())
             self.assertEqual(textgrid_tiers(tg.read_text())["words"][1][2], "what")
             self.assertEqual(len(olign.Result.load(js).words), 7)
+
+    def test_cli_get_saves_a_job_submitted_earlier(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.dict(os.environ, {"OLIGN_KEY": "test-key", "OLIGN_API_URL": self.url}):
+            out, srt = io.StringIO(), pathlib.Path(tmp) / "late.srt"
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(cli.main(["get", "job1", "--srt", str(srt), "--every", "0"]), 0)
+            self.assertIn("job1: 4.48 s of audio, 7 words", out.getvalue())
+            self.assertIn("hamburger", srt.read_text())
 
     def test_cli_reports_api_errors_on_stderr(self):
         FakeAPI.fail_with = (402, {"detail": "out of minutes"}, {})

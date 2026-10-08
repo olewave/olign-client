@@ -3,6 +3,7 @@
     olign align talk.mp3 --textgrid            # writes talk.TextGrid
     olign align talk.mp3 --transcript talk.txt --srt --vtt
     olign export talk.json --csv words.csv     # from a saved result, no upload
+    olign get 6abb52b92239acba --srt           # a job you stopped waiting for
 
 Progress goes to stderr and a short summary to stdout.
 """
@@ -51,6 +52,16 @@ def build_parser() -> argparse.ArgumentParser:
     al.add_argument("--every", type=float, default=5.0, metavar="SECONDS", help="poll interval (default 5)")
     al.add_argument("--quiet", "-q", action="store_true", help="no progress on stderr")
 
+    gt = sub.add_parser("get", help="wait for a job you already submitted and save it",
+                        description="Fetch a job by its id, wait until it is done and save it. "
+                                    "Useful after you stop 'olign align' while it waits. "
+                                    "With no output flag the result is saved as JSON.")
+    gt.add_argument("job_id", help="the id 'olign align' printed")
+    _add_outputs(gt, with_json=True)
+    gt.add_argument("--api", metavar="URL", help="API base URL (default $OLIGN_API_URL, else the public API)")
+    gt.add_argument("--every", type=float, default=5.0, metavar="SECONDS", help="poll interval (default 5)")
+    gt.add_argument("--quiet", "-q", action="store_true", help="no progress on stderr")
+
     ex = sub.add_parser("export", help="convert a saved JSON result, without calling the API",
                         description="Write subtitles, a TextGrid or a CSV from a result saved by "
                                     "'olign align --json'.")
@@ -85,15 +96,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not args.command:
         ap.print_help(sys.stderr)
         return 2
+    run = {"align": run_align, "get": run_get, "export": run_export}[args.command]
     try:
-        return run_align(args) if args.command == "align" else run_export(args)
+        return run(args)
     except OlignError as e:
         print(f"olign: error: {e}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print(file=sys.stderr)
+        return 130
+
+
+def _say(args: argparse.Namespace):
+    return (lambda *_: None) if args.quiet else (lambda m: print(f"olign: {m}", file=sys.stderr, flush=True))
 
 
 def run_align(args: argparse.Namespace) -> int:
-    say = (lambda *_: None) if args.quiet else (lambda m: print(f"olign: {m}", file=sys.stderr, flush=True))
+    say = _say(args)
     for f in (args.audio, args.transcript):
         if f is not None and not f.is_file():
             raise OlignError(f"no such file: {f}")
@@ -106,8 +125,19 @@ def run_align(args: argparse.Namespace) -> int:
     t0 = time.monotonic()
     job = client.align(args.audio, transcript=args.transcript, poll=False)
     say(f"job {job.job_id} {job.state}")
+    return _wait_and_save(client, job.job_id, job.state, args, targets, args.audio.name, t0)
 
-    seen = [job.state]
+
+def run_get(args: argparse.Namespace) -> int:
+    client = Client(base_url=args.api, poll_interval=args.every)
+    targets = outputs(args, args.job_id) or [(pathlib.Path(args.job_id + ".json"), "to_json")]
+    return _wait_and_save(client, args.job_id, "", args, targets, args.job_id, time.monotonic())
+
+
+def _wait_and_save(client: Client, job_id: str, state: str, args: argparse.Namespace, targets: List[tuple],
+                   name: str, t0: float) -> int:
+    say = _say(args)
+    seen = [state]
 
     def progress(r: Result) -> None:
         line = r.state + (f" {r.progress:.0%}" if r.progress is not None and r.state == "running" else "")
@@ -116,12 +146,13 @@ def run_align(args: argparse.Namespace) -> int:
             seen[0] = line
 
     try:
-        result = client.wait(job.job_id, on_progress=progress)
+        result = client.wait(job_id, on_progress=progress)
     except KeyboardInterrupt:
-        print(f"\nolign: stopped waiting. Job {job.job_id} keeps running on the server.", file=sys.stderr)
+        print(f"\nolign: stopped waiting. Job {job_id} keeps running, and "
+              f"'olign get {job_id}' saves it later.", file=sys.stderr)
         return 130
     say(f"done in {time.monotonic() - t0:.0f} s")
-    _summary(result, args.audio.name)
+    _summary(result, name)
     _write(result, targets)
     return 0
 
