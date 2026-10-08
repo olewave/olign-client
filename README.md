@@ -5,6 +5,112 @@ and pronunciation scoring for English speech. You send audio (and, optionally,
 the text that was said); olign returns every word and phone with its start and
 end time and a 0–100 score.
 
+## Quickstart with `pip install olign`
+
+The `olign` package is the shortest path to your first alignment. It calls
+API v1.0 and runs on Python 3.9 or later with nothing beyond the standard
+library.
+
+```bash
+pip install olign
+```
+
+From a checkout of this repo, `pip install .` installs the same package.
+
+Get an API key as [Set up](#set-up) describes. The package reads it from
+`OLIGN_KEY`.
+
+```bash
+read -rsp 'olign key: ' OLIGN_KEY && export OLIGN_KEY && echo
+```
+
+### Align from the command line
+
+One line uploads a recording and writes its Praat TextGrid into the current
+directory.
+
+```bash
+olign align talk.mp3 --textgrid
+```
+
+Add `--transcript` when you have the text. Without it, Olign transcribes the
+audio first and then aligns the words it heard.
+
+```bash
+olign align examples/short1.wav --transcript examples/short1.txt --srt --vtt --json
+```
+
+Every output flag takes an optional file name. A flag on its own names the
+file after the audio, so `--srt` writes `short1.srt` here. Progress goes to
+stderr. A short summary goes to stdout.
+
+```
+short1.wav: 4.48 s of audio, 7 words aligned to your transcript
+wrote short1.srt
+wrote short1.vtt
+wrote short1.json
+```
+
+`olign export` turns a saved result into more formats without a second
+upload, so you pay for the audio once. Try it on the real sample result in
+this repo. It needs no account.
+
+```bash
+olign export examples/sample_v1_result.json --textgrid --csv
+```
+
+### Align from Python
+
+`olign.Client` submits the job and polls it until the words are ready.
+
+```python
+import olign
+
+client = olign.Client()  # reads OLIGN_KEY
+result = client.align("examples/short1.wav", transcript="what is better a fruit or hamburger")
+
+for w in result.words:
+    print(f"{w.word:<10} {w.begin:5.2f} {w.end:5.2f}")
+
+result.to_textgrid("short1.TextGrid")
+```
+
+Each word has `word`, `begin` and `end` in seconds and its `phones`. A phone
+has an ARPAbet label in `ph` and its own `begin` and `end`. Pass the
+transcript as a string, or as a `pathlib.Path` to a UTF-8 text file. Leave it
+out and Olign transcribes the audio.
+
+Every exporter returns the text. Give it a path and it writes the file too.
+
+| method | gives you |
+|---|---|
+| `to_textgrid()` | a Praat TextGrid with a words tier and a phones tier |
+| `to_srt()` | SubRip subtitles with one cue per phrase, or per word with `max_words=1` |
+| `to_vtt()` | WebVTT subtitles with a timestamp tag on every word |
+| `to_csv()` | one row per word, or one per phone with `phones=True` |
+| `to_json()` | the result in the API's shape, which `olign.Result.load()` reads back |
+
+An API error raises a subclass of `olign.OlignError`. Its message is the
+API's own, followed by a hint on what to do.
+
+```python
+try:
+    result = client.align("lecture.ogg")
+except olign.PaymentRequiredError as e:
+    print(e)  # HTTP 402 with the API's message and a hint
+```
+
+| exception | when |
+|---|---|
+| `AuthenticationError` | `401`, the key is missing or no longer valid |
+| `PaymentRequiredError` | `402`, your balance does not cover the recording |
+| `AudioTooLargeError` | `413`, the upload is over 100 MB or the audio is over 3 hours |
+| `UsageLimitError` | `429`, your own monthly limit is reached. `e.retry_after` gives the seconds until it resets |
+| `JobFailedError` | the job was accepted and then failed. The message gives the reason |
+
+The [olign cookbook](https://github.com/olewave/olign-cookbook) has runnable
+recipes and Colab notebooks built on this package.
+
 ## Which version?
 
 | You want to… | Use | Endpoint | Access |
@@ -253,6 +359,7 @@ been re-measured so far.
 
 | test | needs | checks |
 |---|---|---|
+| `python3 -m unittest tests.test_olign_package -v` | nothing | the `olign` package: its exporters and CLI on the sample result, with and without scores, and a full upload-and-poll round trip against a stand-in API on 127.0.0.1 |
 | `python3 -m unittest tests.test_v1_offline -v` | nothing | `examples/v1_process.py` on the sample result: summary, CSVs, and TextGrid tiers with no gaps or overlaps |
 | `python3 -m unittest tests.test_v1_live -v` | `OLIGN_KEY` | every clip in `test-data/` through the v1.0 API: the length, that nearly every word comes back spoken, times in order and inside the audio, every phone inside its word, scores 0–100, and that `v1_process.py` reads the result. About a minute, and 5.5 minutes of audio in four jobs: 18 credits at the launch price, 21 after |
 | the `rest_client.sh` call above | the service token | the v0.9 endpoint: `short1.wav` with `en.word.score` must give `overall=87  words=7  wavetime=4480 (ms)` |
