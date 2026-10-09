@@ -31,29 +31,33 @@ SAMPLE = ROOT / "examples" / "sample_v1_result.json"
 AUDIO = ROOT / "examples" / "short1.wav"
 TRANSCRIPT = ROOT / "examples" / "short1.txt"
 
-# Fields the public response is losing (olign/docs/v1_result_trim.md). The
-# client must work without every one of them.
-DROPPED_JOB = ["stage", "stages", "log_tail"]
-DROPPED_RESULT = ["core_type", "sentence_scores", "segments", "stats", "tagged_regions"]
-DROPPED_WORD = ["sent_id", "tok", "unit", "score"]
+# Every field the public v1 response can carry (docs/api_v1.md). The client
+# must work on a response that holds these and nothing else.
+PUBLIC_JOB = ("job_id", "state", "audio_seconds", "transcript_source", "result", "error")
+PUBLIC_RESULT = ("words",)
+PUBLIC_WORD = ("word", "begin", "end", "score", "phones", "spoken", "annotation", "untranscribed")
+PUBLIC_PHONE = ("ph", "begin", "end", "score")
 
 
 def sample() -> dict:
     return json.loads(SAMPLE.read_text())
 
 
+def _only(d: dict, keep) -> dict:
+    return {k: v for k, v in d.items() if k in keep}
+
+
 def trimmed() -> dict:
-    """The sample as the trimmed API will send it, without any score."""
-    d = sample()
-    for k in DROPPED_JOB + ["_versions"]:
-        d.pop(k, None)
-    for k in DROPPED_RESULT:
-        d["result"].pop(k, None)
+    """The sample cut to the public fields, and without any score (scores are optional)."""
+    d = _only(sample(), PUBLIC_JOB)
+    d["result"] = _only(d["result"], PUBLIC_RESULT)
+    words = []
     for w in d["result"]["words"]:
-        for k in DROPPED_WORD:
-            w.pop(k, None)
-        for p in w["phones"]:
-            p.pop("score", None)
+        w = _only(w, PUBLIC_WORD)
+        w.pop("score", None)
+        w["phones"] = [{k: v for k, v in _only(p, PUBLIC_PHONE).items() if k != "score"} for p in w["phones"]]
+        words.append(w)
+    d["result"]["words"] = words
     return d
 
 
