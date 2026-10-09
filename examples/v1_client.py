@@ -54,7 +54,7 @@ def call(req: urllib.request.Request) -> tuple[dict, dict]:
             return json.loads(r.read()), versions
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")[:300]
-        hint = {401: " (check OLIGN_KEY)", 402: " (out of credits: Billing on https://tycho.olewave.com)",
+        hint = {401: " (check OLIGN_KEY)", 402: " (add a card or buy more minutes: Billing on https://tycho.olewave.com)",
                 403: " (blocked by Cloudflare: send a User-Agent header)",
                 404: " (unknown job: the service may have restarted; resubmit)",
                 429: " (your monthly limit: Settings on https://tycho.olewave.com)"}.get(e.code, "")
@@ -84,7 +84,7 @@ def main() -> None:
     last = None
     while True:
         st, versions = call(urllib.request.Request(f"{a.api}/{job}", headers={"X-API-Key": key, "User-Agent": USER_AGENT}))
-        line = f"{st['state']} ({st.get('stage')})"
+        line = st["state"]
         if line != last:
             print(f"  {line}", file=sys.stderr)
             last = line
@@ -92,13 +92,12 @@ def main() -> None:
             break
         time.sleep(a.every)
     if st["state"] == "failed":
-        sys.exit(f"job failed: {st.get('log_tail', '')}")
+        sys.exit(f"job failed: {st.get('error') or 'the API gave no reason'}")
 
     st["_versions"] = versions
     pathlib.Path(a.out).write_text(json.dumps(st, indent=1))
     r = st["result"]
-    print(f"{st['audio_seconds']:.2f} s of audio, {len(r['words'])} words, "
-          f"overall {r['stats']['overall_mean']} -> {a.out}")
+    print(f"{st['audio_seconds']:.2f} s of audio, {len(r['words'])} words -> {a.out}")
 
 
 if __name__ == "__main__":

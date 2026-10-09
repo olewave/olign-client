@@ -8,7 +8,9 @@
 Input is what v1_client.py saves (the API's final status response). Times are
 seconds from the start of the file; scores are 0-100. A word that was not
 spoken has "spoken": false and zero duration; a [bracketed] tag has
-"annotation": true. Standard library only.
+"annotation": true. It reads only the public v1 fields (words, phones,
+begin, end, score, spoken), so results from before and after the response
+was trimmed both work. Standard library only.
 """
 
 from __future__ import annotations
@@ -25,17 +27,15 @@ def summary(st: dict, weakest: int) -> None:
     spoken = [w for w in words if w.get("spoken", True) and not w.get("annotation")]
     unspoken = [w for w in words if w.get("spoken") is False]
     print(f"audio      {st['audio_seconds']:.2f} s   transcript from {st.get('transcript_source')}")
-    print(f"words      {len(spoken)} spoken, {len(unspoken)} not spoken, "
-          f"{len(r['sentence_scores'])} sentence(s)")
-    print(f"overall    {r['stats']['overall_mean']}   (mean segment score, 0-100)")
-    for s in r["sentence_scores"]:
-        print(f"sentence {s['sent_id']}: score {s['sent_score']}  word avg {s['word_avg']}  lowest {s['word_min']}")
+    print(f"words      {len(spoken)} spoken, {len(unspoken)} not spoken")
     if spoken:
         speech = sum(w["end"] - w["begin"] for w in spoken)
         print(f"rate       {len(spoken) / max(speech, 1e-9) * 60:.0f} words per minute of speech")
-    print(f"\nweakest {min(weakest, len(spoken))} word(s):")
-    for w in sorted(spoken, key=lambda w: w["score"])[:weakest]:
-        low = min(w.get("phones") or [{"ph": "-", "score": w["score"]}], key=lambda p: p["score"])
+    scored = [w for w in spoken if w.get("score") is not None]
+    print(f"\nweakest {min(weakest, len(scored))} word(s), by alignment score:")
+    for w in sorted(scored, key=lambda w: w["score"])[:weakest]:
+        phones = [p for p in w.get("phones") or [] if p.get("score") is not None]
+        low = min(phones, key=lambda p: p["score"]) if phones else {"ph": "-", "score": "-"}
         print(f"  {w['word']:<16} {w['begin']:7.2f}-{w['end']:7.2f} s  score {w['score']:5.1f}"
               f"   weakest phone: {low['ph']} ({low['score']})")
 
@@ -45,16 +45,16 @@ def write_csv(st: dict, out: pathlib.Path) -> None:
     words = st["result"]["words"]
     with open(out / "words.csv", "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["index", "word", "begin_s", "end_s", "score", "sentence", "spoken", "annotation"])
+        w.writerow(["index", "word", "begin_s", "end_s", "score", "spoken", "annotation"])
         for i, x in enumerate(words):
-            w.writerow([i, x["word"], x["begin"], x["end"], x["score"], x.get("sent_id"),
+            w.writerow([i, x["word"], x["begin"], x["end"], x.get("score"),
                         x.get("spoken", True), x.get("annotation", False)])
     with open(out / "phones.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["word_index", "word", "phone", "begin_s", "end_s", "score"])
         for i, x in enumerate(words):
             for p in x.get("phones") or []:
-                w.writerow([i, x["word"], p["ph"], p["begin"], p["end"], p["score"]])
+                w.writerow([i, x["word"], p["ph"], p["begin"], p["end"], p.get("score")])
     print(f"wrote {out / 'words.csv'} and {out / 'phones.csv'}")
 
 

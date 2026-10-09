@@ -51,16 +51,21 @@ together. These keep them aligned, weakest to strongest:
 
 ## Response headers
 
-Every REST response carries four versions:
+API v1 (`/olign/v1`) answers with two version headers. `X-Olign-API-Version`
+is the contract, `v1.0.0`. `X-Olign-Version` is the Olign release that did the
+work. Store `X-Olign-Version` with any result you keep. The `olign` package
+saves both under `_versions` in the JSON it writes.
+
+Every v0.9 REST response carries four versions:
 
 | header | example |
 |---|---|
-| `X-Olign-Api-Version` | `v0.9.0` (`v1.0.0` on `/olign/v1`), the wire contract you are talking to |
+| `X-Olign-Api-Version` | `v0.9.0`, the wire contract you are talking to |
 | `X-Olign-Extractor-Version` | `v1.0.0` |
 | `X-Olign-Transducer-Version` | `v0.1.0` |
 | `X-Olign-Analyzer-Version` | `v0.9.0` |
 
-**Log all four alongside any score you store.** Scores move when Olign is
+**Log all four alongside any v0.9 score you store.** Scores move when Olign is
 upgraded, and these are what let you tell *"the speaker changed"* from *"the
 yardstick changed"*. They are reported
 only: there is no way to request a particular version, and a given deployment

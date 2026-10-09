@@ -5,9 +5,10 @@ through examples/v1_client.py and the answer is checked. Needs a key:
     python3 -m unittest tests.test_v1_live -v
 
 Skipped without OLIGN_KEY. Allow about a minute. One run sends 5.5 minutes
-of audio in four jobs: 18 credits at the launch price, 21 after. A run the
-account cannot pay for, out of credits (402) or past its own monthly limit
-(429), is skipped, not failed.
+of audio in four jobs, about 2 cents at the launch price. A run the account
+cannot pay for (402) or that is past its own monthly limit (429) is skipped,
+not failed. Only the public v1 fields are checked, so it passes before and
+after the response is trimmed to alignment.
 """
 
 from __future__ import annotations
@@ -58,16 +59,15 @@ class LiveV1(unittest.TestCase):
             self.assertLessEqual(w["end"], st["audio_seconds"] + 0.05)
             self.assertGreaterEqual(w["begin"] + 1e-6, last, f"words out of order at {w['word']}")
             last = w["begin"]
-            self.assertTrue(0 <= w["score"] <= 100)
+            self.assertTrue(w.get("score") is None or 0 <= w["score"] <= 100, w)
             phones = w.get("phones") or []
             for p in phones:
-                self.assertTrue(0 <= p["score"] <= 100, p)
+                self.assertTrue(p.get("score") is None or 0 <= p["score"] <= 100, p)
                 # Every phone sits inside its word, including one olign could
                 # not place: zero length, where it falls in order.
                 self.assertTrue(w["begin"] - 0.01 <= p["begin"] <= p["end"] <= w["end"] + 0.01, p)
             starts = [p["begin"] for p in phones]
             self.assertEqual(starts, sorted(starts), f"phones out of order in {w['word']!r}")
-        self.assertTrue(0 <= r["stats"]["overall_mean"] <= 100)
         self.assertIn("x-olign-api-version", {k.lower() for k in st["_versions"]})
 
         tg = out.with_suffix(".TextGrid")

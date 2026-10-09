@@ -1,0 +1,3 @@
+# The sdist carries the package's offline tests and the sample they read.
+include examples/sample_v1_result.json examples/short1.wav examples/short1.txt
+exclude tests/test_v1_live.py tests/test_v1_offline.py
