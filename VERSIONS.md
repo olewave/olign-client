@@ -51,17 +51,21 @@ together. These keep them aligned, weakest to strongest:
 
 ## Response headers
 
-Every REST response carries its API version. A v0.9 answer also carries it in
-its body, as `versions`, since 2026-10-11:
+Every REST response carries its API version, and a `/olign/v1` response also
+names the Olign release that did the work. A v0.9 answer also carries its
+versions in its body, as `versions`, since 2026-10-11:
 
 | header | example |
 |---|---|
 | `X-Olign-Api-Version` | `v0.9.0` (`v1.0.0` on `/olign/v1`), the wire contract you are talking to |
+| `X-Olign-Version` | `v1.0.1`, the Olign release; `/olign/v1` only |
 
-**Log it, and the date, alongside any score you store.** Scores move when Olign
-is upgraded, and the date is what lets you tell *"the speaker changed"* from
-*"the yardstick changed"*. It is reported only: there is no way to request a
-particular version.
+**Log the release alongside any score you store.** Scores move when Olign is
+upgraded, and the release is what lets you tell *"the speaker changed"* from
+*"the yardstick changed"*. On `/olign/v1` that is `X-Olign-Version`.
+`/olign/v0.9` doesn't send it, so log the API version and the date; the README
+says which release that endpoint served when. Versions are reported only: there
+is no way to request a particular one.
 
 `X-Olign-Api-Version` is published in full but only `MAJOR.MINOR` is enforced,
 so `v0.9.0` and `v0.9.1` interoperate.
