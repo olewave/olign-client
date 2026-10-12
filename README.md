@@ -14,6 +14,8 @@ end time and a 0–100 score.
 
 - **v0.9** serves **Olign 0.9**, the version behind every olign number in the
   fa-bench paper: one clip and its text per request, answered in the same call.
+  Since 2026-10-11 it serves Olign 0.9.1; see
+  [Reproduce the fa-bench numbers](#reproduce-the-fa-bench-numbers).
   The paper's first arXiv version calls it "Olign 1.0" in a table caption; the
   revised paper and fa-bench's records name it Olign 0.9.
 - **v1.0** serves **Olign 1.0**, the current API: upload a whole recording (the
@@ -206,6 +208,7 @@ The response is one JSON object:
 
 ```jsonc
 {
+  "versions": {"api": "v0.9.0"},
   "errId": 0,              // must be 0; otherwise read "error" and ignore "result"
   "error": "",
   "result": {
@@ -223,6 +226,9 @@ The response is one JSON object:
 - **All times are milliseconds**: `begin: 470` is 0.47 s.
 - `details[]` has one entry per word of `ref_text`, even words the speaker never
   said; a near-zero `score` means mispronounced *or* skipped.
+- **Keep `versions` with any score you store.** It holds the same values as the
+  `X-Olign-*-Version` headers. Answers from before 2026-10-11 23:46 UTC don't
+  have it; take the versions from their headers instead.
 
 ```python
 d = response.json()
@@ -237,6 +243,7 @@ for w in d["result"]["details"]:
 | `200` | parse the body, then check `errId` |
 | `400` | audio that cannot be decoded |
 | `403` | missing or invalid service token |
+| `411` | no `Content-Length` (a chunked upload) |
 | `413` | body over 50 MB |
 | `422` | `ref_text` missing |
 
@@ -261,19 +268,21 @@ audio, several in parallel.
 Check the version first. The paper's olign numbers are **Olign 0.9**'s, which
 this endpoint serves through API v0.9 (the paper's first arXiv version says
 "Olign 1.0" in a table caption; the revised paper and fa-bench's records name it
-Olign 0.9). Every response carries its API version
-in a header, and for this build it reads:
+Olign 0.9). Every response carries its versions in `X-Olign-*-Version` headers
+and, since 2026-10-11, in the body's `versions`.
 
-```
-X-Olign-API-Version:        v0.9.0
-```
+**Since 2026-10-11 this endpoint serves Olign 0.9.1.** The paper's current
+version reports **Olign 0.9.0**, which is no longer served.
+Olign 0.9.1's word and phone times differ
+from 0.9.0's, so a run today won't match the table below exactly; a later version
+of the paper will report Olign 0.9.1. The table stays as the record of 0.9.0.
 
-What to expect: the paper's alignments were made in August 2026 on a pre-release
-server, not on this public build, so individual boundaries differ by a few
+What 0.9.0 gave: the paper's alignments were made in August 2026 on a pre-release
+server, not on the public build, so individual boundaries differ by a few
 milliseconds (8.9 ms median per utterance), but the totals agree. Buckeye test
 (clean), scored with fa-bench's current scorer:
 
-| Buckeye test, clean | paper | public build `98728396` |
+| Buckeye test, clean | paper | public build `98728396` (0.9.0) |
 |---|---|---|
 | word MAE (ms) | 22.5 | 22.3 |
 | word F1 @20 ms | 0.744 | 0.747 |
@@ -281,7 +290,7 @@ milliseconds (8.9 ms median per utterance), but the totals agree. Buckeye test
 | PER (%) | 28.2 | 28.2 |
 | phone F1 @20 ms | 0.522 | 0.526 |
 
-The public build gives identical timings for the same file on every run. Allow
+The public build gave identical timings for the same file on every run. Allow
 about 0.1 ms and 0.002 for scorer drift: the current scorer gives the paper's own
 alignments 22.6 ms word MAE and 0.524 phone F1. Only Buckeye test (clean) has
 been re-measured so far.
