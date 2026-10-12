@@ -14,8 +14,8 @@ end time and a 0–100 score.
 
 - **v0.9** serves **Olign 0.9**, the version behind every olign number in the
   fa-bench paper: one clip and its text per request, answered in the same call.
-  The paper's table caption calls it "Olign 1.0"; fa-bench's records name it
-  Olign 0.9.
+  The paper's first arXiv version calls it "Olign 1.0" in a table caption; the
+  revised paper and fa-bench's records name it Olign 0.9.
 - **v1.0** serves **Olign 1.0**, the current API: upload a whole recording (the
   transcript is optional), then poll the job for word and phone timings.
 
@@ -259,8 +259,9 @@ audio, several in parallel.
 3. **Align and score:** `evals/run_evals.sh olign`.
 
 Check the version first. The paper's olign numbers are **Olign 0.9**'s, which
-this endpoint serves through API v0.9 (the paper's table caption says "Olign
-1.0"; fa-bench's records name it Olign 0.9). Every response carries its API version
+this endpoint serves through API v0.9 (the paper's first arXiv version says
+"Olign 1.0" in a table caption; the revised paper and fa-bench's records name it
+Olign 0.9). Every response carries its API version
 in a header, and for this build it reads:
 
 ```
