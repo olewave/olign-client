@@ -10,12 +10,16 @@ end time and a 0–100 score.
 | You want to… | Use | Endpoint | Access |
 |---|---|---|---|
 | **reproduce olign's results in the [fa-bench](https://github.com/olewave/fa-bench) paper** | **v0.9** | `https://api.olewave.com/olign/v0.9` | a service token from Olewave (info@olewave.com) |
-| **get the latest olign results** for your own recordings | **v1.0** | `https://api.olewave.com/olign/v1` | an API key, self-service with an invitation code |
+| **get the latest olign results** for your own recordings, or score Olign 1.0 with fa-bench | **v1.0** | `https://api.olewave.com/olign/v1` | an API key, self-service with an invitation code |
 
-- **v0.9** is the API behind the paper's "Olign 1.0" numbers: one clip and its
-  text per request, answered in the same call.
-- **v1.0** is the current API: upload a whole recording (the transcript is
-  optional), then poll the job for word and phone timings.
+- **v0.9** serves **Olign 0.9**, the version behind every olign number in the
+  fa-bench paper: one clip and its text per request, answered in the same call.
+  Since 2026-10-11 it serves Olign 0.9.1; see
+  [Reproduce the fa-bench numbers](#reproduce-the-fa-bench-numbers).
+  The paper's first arXiv version calls it "Olign 1.0" in a table caption; the
+  revised paper and fa-bench's records name it Olign 0.9.
+- **v1.0** serves **Olign 1.0**, the current API: upload a whole recording (the
+  transcript is optional), then poll the job for word and phone timings.
 
 ---
 
@@ -58,7 +62,23 @@ Or let the example do both and save the result (Python standard library only):
 python3 examples/v1_client.py examples/short1.wav --transcript examples/short1.txt -o result.json
 ```
 
-Without a transcript, olign transcribes the audio itself and scores what it heard.
+With a transcript, the job's status reports `"transcript_source": "client"`.
+
+Leave the transcript part out and olign makes the transcript itself, then aligns
+and scores what it heard:
+
+```bash
+curl -H "X-API-Key: $OLIGN_KEY" -F audio=@examples/short1.wav https://api.olewave.com/olign/v1
+```
+
+- The status reports `"transcript_source": "asr"`.
+- If it finds no speech, the job ends `failed`, and `log_tail` says
+  `no transcript given and no speech recognized in the audio`.
+
+Send a transcript when you're assessing pronunciation. Without one, words are
+scored against what the recognizer heard: a mispronounced word may be
+recognized as what was actually said and look fine. Audio-only mode is best
+when you mainly need timings.
 
 ### Handle the result
 
@@ -67,6 +87,7 @@ Once `state` is `done`, the response holds:
 | field | meaning |
 |---|---|
 | `audio_seconds` | length of your audio, as decoded; your daily usage is counted on it |
+| `transcript_source` | `client` when you sent the transcript, `asr` when olign made it |
 | `result.words[]` | every transcript word in order: `word`, `begin`, `end` (seconds), `score` (0–100), `sent_id`, and `phones[]` with `ph` (CMU/ARPAbet), `begin`, `end`, `score` |
 | `result.sentence_scores[]` | per sentence: `sent_score`, `word_avg`, `word_min` |
 | `result.stats.overall_mean` | the mean segment score; `n_err > 0` means some segments could not be scored |
@@ -118,6 +139,27 @@ This prints the overall score and the weakest words, and writes
 
 A job can also end with `"state": "failed"`; `log_tail` says why.
 
+### Score Olign 1.0 with fa-bench
+
+fa-bench runs Olign 1.0 through this API, one job per utterance, in both modes:
+
+| fa-bench recipe | sends | fa-bench track |
+|---|---|---|
+| `olign_v1` | the audio and its reference transcript (`transcript_source: client`) | 1, alignment given the words |
+| `olign_v1_asr` | the audio alone (`transcript_source: asr`): Olign 1.0 recognizes the words, then aligns its own | 2, Olign's own recognizer then its aligner, never another system's words |
+
+1. **Set up fa-bench** as [its README](https://github.com/olewave/fa-bench#readme)
+   describes. The corpora are licensed separately.
+2. **Put your key** in fa-bench's `.fabench.env` (untracked): `OLIGN_API_KEY=<key>`.
+3. **Align and score:** `evals/run_evals.sh olign_v1` or
+   `evals/run_evals.sh olign_v1_asr`; add `--use-noisy-dataset` for the four
+   degraded conditions.
+
+Every response is cached, so a restart or a rescore sends nothing again. A full
+sweep, every split of both corpora clean and degraded, is 47,805 jobs and 34.1
+hours of audio per mode. The utterances are a few seconds each, so nearly every
+job rounds up to one credit: about 47,800 credits, or $48, per mode.
+
 ---
 
 ## v0.9: one clip per request (reproducing fa-bench)
@@ -166,6 +208,7 @@ The response is one JSON object:
 
 ```jsonc
 {
+  "versions": {"api": "v0.9.0"},
   "errId": 0,              // must be 0; otherwise read "error" and ignore "result"
   "error": "",
   "result": {
@@ -183,6 +226,9 @@ The response is one JSON object:
 - **All times are milliseconds**: `begin: 470` is 0.47 s.
 - `details[]` has one entry per word of `ref_text`, even words the speaker never
   said; a near-zero `score` means mispronounced *or* skipped.
+- **Keep `versions` with any score you store.** It holds the same values as the
+  `X-Olign-*-Version` headers. Answers from before 2026-10-11 23:46 UTC don't
+  have it; take the versions from their headers instead.
 
 ```python
 d = response.json()
@@ -197,6 +243,7 @@ for w in d["result"]["details"]:
 | `200` | parse the body, then check `errId` |
 | `400` | audio that cannot be decoded |
 | `403` | missing or invalid service token |
+| `411` | no `Content-Length` (a chunked upload) |
 | `413` | body over 50 MB |
 | `422` | `ref_text` missing |
 
@@ -218,20 +265,24 @@ audio, several in parallel.
 
 3. **Align and score:** `evals/run_evals.sh olign`.
 
-Check the version first. The paper measures **Olign v1.0.0** ("Olign 1.0"),
-which this endpoint serves through API v0.9; every response carries its API version
-in a header, and for this build it reads:
+Check the version first. The paper's olign numbers are **Olign 0.9**'s, which
+this endpoint serves through API v0.9 (the paper's first arXiv version says
+"Olign 1.0" in a table caption; the revised paper and fa-bench's records name it
+Olign 0.9). Every response carries its versions in `X-Olign-*-Version` headers
+and, since 2026-10-11, in the body's `versions`.
 
-```
-X-Olign-API-Version:        v0.9.0
-```
+**Since 2026-10-11 this endpoint serves Olign 0.9.1.** The paper's current
+version reports **Olign 0.9.0**, which is no longer served.
+Olign 0.9.1's word and phone times differ
+from 0.9.0's, so a run today won't match the table below exactly; a later version
+of the paper will report Olign 0.9.1. The table stays as the record of 0.9.0.
 
-What to expect: the paper's alignments were made in August 2026 on a pre-release
-server, not on this public build, so individual boundaries differ by a few
+What 0.9.0 gave: the paper's alignments were made in August 2026 on a pre-release
+server, not on the public build, so individual boundaries differ by a few
 milliseconds (8.9 ms median per utterance), but the totals agree. Buckeye test
 (clean), scored with fa-bench's current scorer:
 
-| Buckeye test, clean | paper | public build `98728396` |
+| Buckeye test, clean | paper | public build `98728396` (0.9.0) |
 |---|---|---|
 | word MAE (ms) | 22.5 | 22.3 |
 | word F1 @20 ms | 0.744 | 0.747 |
@@ -239,7 +290,7 @@ milliseconds (8.9 ms median per utterance), but the totals agree. Buckeye test
 | PER (%) | 28.2 | 28.2 |
 | phone F1 @20 ms | 0.522 | 0.526 |
 
-The public build gives identical timings for the same file on every run. Allow
+The public build gave identical timings for the same file on every run. Allow
 about 0.1 ms and 0.002 for scorer drift: the current scorer gives the paper's own
 alignments 22.6 ms word MAE and 0.524 phone F1. Only Buckeye test (clean) has
 been re-measured so far.

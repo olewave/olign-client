@@ -51,7 +51,8 @@ together. These keep them aligned, weakest to strongest:
 
 ## Response headers
 
-Every REST response carries its API version:
+Every REST response carries its API version. A v0.9 answer also carries it in
+its body, as `versions`, since 2026-10-11:
 
 | header | example |
 |---|---|
