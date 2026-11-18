@@ -55,33 +55,25 @@ together. These keep them aligned, weakest to strongest:
 
 ## Response headers
 
-API v1 (`/olign/v1`) answers with two version headers. `X-Olign-API-Version`
-is the contract, `v1.2.0`. `X-Olign-Version` is the Olign release that did the
-work, e.g. `v1.1.3`. Store `X-Olign-Version` with any result you keep. The `olign` package
-saves both under `_versions` in the JSON it writes.
-
-Every v0.9 REST response carries four versions, and since 2026-10-11 the same
-values in its body as `versions`:
+Every REST response carries its API version, and a `/olign/v1` response also
+names the Olign release that did the work. A v0.9 answer also carries its
+versions in its body, as `versions`, since 2026-10-11:
 
 | header | example |
 |---|---|
-| `X-Olign-Api-Version` | `v0.9.0`, the wire contract you are talking to |
-| `X-Olign-Extractor-Version` | `v1.0.0` |
-| `X-Olign-Transducer-Version` | `v0.1.0` |
-| `X-Olign-Analyzer-Version` | `v0.9.0` |
+| `X-Olign-Api-Version` | `v0.9.0` (`v1.2.0` on `/olign/v1`), the wire contract you are talking to |
+| `X-Olign-Version` | `v1.1.3`, the Olign release; `/olign/v1` only |
 
-**Log all four alongside any v0.9 score you store.** Scores move when Olign is
-upgraded, and these are what let you tell *"the speaker changed"* from *"the
-yardstick changed"*. They are reported
-only: there is no way to request a particular version, and a given deployment
-serves exactly one of each.
+**Log the release alongside any score you store.** Scores move when Olign is
+upgraded, and the release is what lets you tell *"the speaker changed"* from
+*"the yardstick changed"*. On `/olign/v1` that is `X-Olign-Version`; the
+`olign` package saves both headers under `_versions` in the JSON it writes.
+`/olign/v0.9` doesn't send it, so log the API version and the date; the README
+says which release that endpoint served when. Versions are reported only: there
+is no way to request a particular one.
 
 `X-Olign-Api-Version` is published in full but only `MAJOR.MINOR` is enforced,
 so `v0.9.0` and `v0.9.1` interoperate.
-
-> **Scores are not bit-reproducible across versions**, and historically were
-> not reproducible even for identical input on one server. That is fixed as of
-> `X-Olign-Extractor-Version` `v0.5.0`.
 
 **Why vendor the protos instead of using a git submodule?** olign-client is for
 external developers who do not have access to the private olign server repo. A
