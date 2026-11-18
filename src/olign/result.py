@@ -44,12 +44,14 @@ class Word:
     phones: List[Phone] = field(default_factory=list)
     spoken: bool = True
     annotation: bool = False
+    untranscribed: bool = False  # heard but not in your transcript (align_untranscribed=True)
 
     @classmethod
     def from_dict(cls, d: dict) -> "Word":
         return cls(word=d["word"], begin=float(d["begin"]), end=float(d["end"]), score=d.get("score"),
                    phones=[Phone.from_dict(p) for p in d.get("phones") or []],
-                   spoken=bool(d.get("spoken", True)), annotation=bool(d.get("annotation", False)))
+                   spoken=bool(d.get("spoken", True)), annotation=bool(d.get("annotation", False)),
+                   untranscribed=bool(d.get("untranscribed", False)))
 
     def to_dict(self) -> dict:
         out: dict = {"word": self.word, "begin": self.begin, "end": self.end}
@@ -60,12 +62,50 @@ class Word:
             out["spoken"] = False
         if self.annotation:
             out["annotation"] = True
+        if self.untranscribed:
+            out["untranscribed"] = True
         return out
 
     @property
     def timed(self) -> bool:
         """True for a spoken word with a duration: one that belongs on a timeline."""
         return self.spoken and not self.annotation and self.end > self.begin
+
+
+@dataclass
+class Pause:
+    """A stretch of 0.05 s or more that no word covers: silence, a breath, a noise."""
+    begin: float
+    end: float
+
+    @property
+    def seconds(self) -> float:
+        return self.end - self.begin
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Pause":
+        return cls(begin=float(d["begin"]), end=float(d["end"]))
+
+    def to_dict(self) -> dict:
+        return {"begin": self.begin, "end": self.end}
+
+
+@dataclass
+class Phrase:
+    """Words between pauses of 0.1 s or more. ``first`` and ``last`` are
+    positions in :attr:`Result.words`, both included."""
+    begin: float
+    end: float
+    first: int
+    last: int
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Phrase":
+        first, last = d["words"]
+        return cls(begin=float(d["begin"]), end=float(d["end"]), first=int(first), last=int(last))
+
+    def to_dict(self) -> dict:
+        return {"begin": self.begin, "end": self.end, "words": [self.first, self.last]}
 
 
 @dataclass
@@ -77,6 +117,8 @@ class Result:
     audio_seconds: Optional[float] = None
     transcript_source: Optional[str] = None
     words: List[Word] = field(default_factory=list)
+    pauses: List[Pause] = field(default_factory=list)
+    phrases: List[Phrase] = field(default_factory=list)
     progress: Optional[float] = None
     error: Optional[str] = None
     api_version: Optional[str] = None
@@ -99,6 +141,8 @@ class Result:
             audio_seconds=None if d.get("audio_seconds") is None else float(d["audio_seconds"]),
             transcript_source=d.get("transcript_source"),
             words=[Word.from_dict(w) for w in result.get("words") or []],
+            pauses=[Pause.from_dict(p) for p in result.get("pauses") or []],
+            phrases=[Phrase.from_dict(p) for p in result.get("phrases") or []],
             progress=None if progress is None else float(progress),
             error=d.get("error"),
             api_version=h.get("x-olign-api-version") or saved.get("x-olign-api-version"),
@@ -129,6 +173,10 @@ class Result:
     def timed_words(self) -> Iterator[Word]:
         return (w for w in self.words if w.timed)
 
+    def phrase_words(self, phrase: Phrase) -> List[Word]:
+        """The words of one of :attr:`phrases`."""
+        return self.words[phrase.first:phrase.last + 1]
+
     # -- writing -------------------------------------------------------------
 
     def to_json(self, path: Optional[PathLike] = None, indent: int = 1) -> str:
@@ -136,7 +184,9 @@ class Result:
         :meth:`load` reads it back."""
         d: dict = {"job_id": self.job_id, "state": self.state, "audio_seconds": self.audio_seconds,
                    "transcript_source": self.transcript_source,
-                   "result": {"words": [w.to_dict() for w in self.words]}}
+                   "result": {"words": [w.to_dict() for w in self.words],
+                              "pauses": [p.to_dict() for p in self.pauses],
+                              "phrases": [p.to_dict() for p in self.phrases]}}
         if self.error:
             d["error"] = self.error
         versions = {k: v for k, v in (("X-Olign-Api-Version", self.api_version),
@@ -161,13 +211,14 @@ class Result:
         return _out(buf.getvalue(), path)
 
     def to_textgrid(self, path: Optional[PathLike] = None) -> str:
-        """A Praat TextGrid with a words tier and a phones tier. The gaps
-        between words become empty intervals, as Praat requires."""
+        """A Praat TextGrid with a words, a phones and a pauses tier. The
+        gaps between intervals become empty ones, as Praat requires."""
         xmax = self.duration
         words = list(self.timed_words())
         tiers = {
             "words": [(w.begin, w.end, w.word) for w in words],
             "phones": [(p.begin, p.end, p.ph) for w in words for p in w.phones if p.end > p.begin],
+            "pauses": [(p.begin, p.end, "pause") for p in self.pauses if p.end > p.begin],
         }
         lines = ['File type = "ooTextFile"', 'Object class = "TextGrid"', "",
                  "xmin = 0", f"xmax = {_num(xmax)}", "tiers? <exists>", f"size = {len(tiers)}", "item []:"]

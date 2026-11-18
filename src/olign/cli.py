@@ -47,6 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
     al.add_argument("audio", type=pathlib.Path, help="the recording (wav, mp3, m4a, flac, ogg/opus or webm)")
     al.add_argument("--transcript", "-t", type=pathlib.Path, metavar="FILE",
                     help="UTF-8 text of what is said. Without it, olign transcribes the audio first")
+    al.add_argument("--word-edges", choices=("phonetic", "audible"),
+                    help="phonetic (the default) or audible: words start and end where a listener hears "
+                         "them, as dubbing and subtitles need (clean recordings)")
+    al.add_argument("--align-untranscribed", action="store_true",
+                    help="also align the speech the transcript leaves out (fillers, repeats)")
     _add_outputs(al, with_json=True)
     al.add_argument("--api", metavar="URL", help="API base URL (default $OLIGN_API_URL, else the public API)")
     al.add_argument("--every", type=float, default=5.0, metavar="SECONDS", help="poll interval (default 5)")
@@ -71,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _add_outputs(p: argparse.ArgumentParser, with_json: bool) -> None:
-    help_ = {"textgrid": "Praat TextGrid, a words tier and a phones tier",
+    help_ = {"textgrid": "Praat TextGrid, a words, a phones and a pauses tier",
              "srt": "SubRip subtitles", "vtt": "WebVTT subtitles with a timestamp on every word",
              "csv": "one row per word", "json": "the full result, readable by 'olign export'"}
     for name in FORMATS:
@@ -123,7 +128,8 @@ def run_align(args: argparse.Namespace) -> int:
     say(f"uploading {args.audio.name} ({size:.1f} MB)"
         + ("" if args.transcript else ", no transcript, so olign transcribes it first"))
     t0 = time.monotonic()
-    job = client.align(args.audio, transcript=args.transcript, poll=False)
+    job = client.align(args.audio, transcript=args.transcript, poll=False, word_edges=args.word_edges,
+                       align_untranscribed=args.align_untranscribed)
     say(f"job {job.job_id} {job.state}")
     return _wait_and_save(client, job.job_id, job.state, args, targets, args.audio.name, t0)
 
@@ -177,7 +183,8 @@ def _summary(r: Result, name: str) -> None:
     source = {"client": "aligned to your transcript", "asr": "transcribed by olign"}.get(
         r.transcript_source or "", "aligned")
     length = f"{r.audio_seconds:.2f} s of audio, " if r.audio_seconds is not None else ""
-    print(f"{name}: {length}{timed} words {source}")
+    pauses = f", {len(r.pauses)} pauses, {len(r.phrases)} phrases" if r.pauses or r.phrases else ""
+    print(f"{name}: {length}{timed} words {source}{pauses}")
 
 
 def _write(r: Result, targets: List[tuple]) -> None:

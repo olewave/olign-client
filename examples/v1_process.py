@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """Turn an olign API v1 result into something you can read, sort and open.
 
-    python3 v1_process.py sample_v1_result.json                 # summary + weakest words
-    python3 v1_process.py sample_v1_result.json --csv out/      # out/words.csv, out/phones.csv
+    python3 v1_process.py sample_v1_result.json                 # summary + least certain words
+    python3 v1_process.py sample_v1_result.json --csv out/      # out/words.csv, phones.csv, pauses.csv
     python3 v1_process.py sample_v1_result.json --textgrid out/result.TextGrid   # open in Praat
 
 Input is what v1_client.py saves (the API's final status response). Times are
-seconds from the start of the file; scores are 0-100. A word that was not
-spoken has "spoken": false and zero duration; a [bracketed] tag has
-"annotation": true. It reads only the public v1 fields (words, phones,
-begin, end, score, spoken), so results from before and after the response
-was trimmed both work. Standard library only.
+seconds from the start of the file; a score (0-100) is how sure olign is of the
+alignment. A word that was not spoken has "spoken": false and zero duration; a
+[bracketed] tag has "annotation": true; a word your transcript left out (sent
+with align_untranscribed=1) has "untranscribed": true. `pauses` lists every
+stretch of 0.05 s or more that no word covers; `phrases` groups the words
+between pauses of 0.1 s or more. Standard library only.
 """
 
 from __future__ import annotations
@@ -25,19 +26,29 @@ def summary(st: dict, weakest: int) -> None:
     r = st["result"]
     words = r["words"]
     spoken = [w for w in words if w.get("spoken", True) and not w.get("annotation")]
-    unspoken = [w for w in words if w.get("spoken") is False]
-    print(f"audio      {st['audio_seconds']:.2f} s   transcript from {st.get('transcript_source')}")
-    print(f"words      {len(spoken)} spoken, {len(unspoken)} not spoken")
+    unspoken = [w for w in words if w.get("spoken") is False and not w.get("annotation")]
+    added = [w for w in words if w.get("untranscribed")]
+    pauses, phrases = r.get("pauses", []), r.get("phrases", [])
+    versions = st.get("_versions", {})
+    print(f"audio      {st['audio_seconds']:.2f} s   transcript from {st.get('transcript_source')}"
+          f"   olign {versions.get('X-Olign-Version', '?')}")
+    print(f"words      {len(spoken)} spoken, {len(unspoken)} not spoken"
+          + (f", {len(added)} untranscribed" if added else ""))
+    inner = [p for p in pauses if p["begin"] > 0 and p["end"] < st["audio_seconds"]]
+    print(f"pauses     {len(pauses)} ({len(inner)} between words), {len(phrases)} phrase(s)")
+    for ph in phrases:
+        a, b = ph["words"]
+        print(f"  {ph['begin']:7.2f}-{ph['end']:7.2f} s  " + " ".join(w["word"] for w in words[a:b + 1]))
     if spoken:
         speech = sum(w["end"] - w["begin"] for w in spoken)
         print(f"rate       {len(spoken) / max(speech, 1e-9) * 60:.0f} words per minute of speech")
     scored = [w for w in spoken if w.get("score") is not None]
-    print(f"\nweakest {min(weakest, len(scored))} word(s), by alignment score:")
+    print(f"\nleast certain {min(weakest, len(scored))} word(s):")
     for w in sorted(scored, key=lambda w: w["score"])[:weakest]:
-        phones = [p for p in w.get("phones") or [] if p.get("score") is not None]
-        low = min(phones, key=lambda p: p["score"]) if phones else {"ph": "-", "score": "-"}
+        ph = [p for p in w.get("phones") or [] if p.get("score") is not None]
+        low = min(ph, key=lambda p: p["score"]) if ph else {"ph": "-", "score": "-"}
         print(f"  {w['word']:<16} {w['begin']:7.2f}-{w['end']:7.2f} s  score {w['score']:5.1f}"
-              f"   weakest phone: {low['ph']} ({low['score']})")
+              f"   least certain phone: {low['ph']} ({low['score']})")
 
 
 def write_csv(st: dict, out: pathlib.Path) -> None:
@@ -45,28 +56,34 @@ def write_csv(st: dict, out: pathlib.Path) -> None:
     words = st["result"]["words"]
     with open(out / "words.csv", "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["index", "word", "begin_s", "end_s", "score", "spoken", "annotation"])
+        w.writerow(["index", "word", "begin_s", "end_s", "score", "spoken", "annotation", "untranscribed"])
         for i, x in enumerate(words):
             w.writerow([i, x["word"], x["begin"], x["end"], x.get("score"),
-                        x.get("spoken", True), x.get("annotation", False)])
+                        x.get("spoken", True), x.get("annotation", False), x.get("untranscribed", False)])
     with open(out / "phones.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["word_index", "word", "phone", "begin_s", "end_s", "score"])
         for i, x in enumerate(words):
             for p in x.get("phones") or []:
-                w.writerow([i, x["word"], p["ph"], p["begin"], p["end"], p.get("score")])
-    print(f"wrote {out / 'words.csv'} and {out / 'phones.csv'}")
+                w.writerow([i, x["word"], p["ph"], p["begin"], p["end"], p["score"]])
+    with open(out / "pauses.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["begin_s", "end_s", "seconds"])
+        for p in st["result"].get("pauses", []):
+            w.writerow([p["begin"], p["end"], round(p["end"] - p["begin"], 3)])
+    print(f"wrote {out / 'words.csv'}, {out / 'phones.csv'} and {out / 'pauses.csv'}")
 
 
 def write_textgrid(st: dict, path: pathlib.Path) -> None:
-    """Praat TextGrid with a words tier and a phones tier. Gaps between labelled
-    intervals are filled with empty ones, which Praat requires."""
+    """Praat TextGrid with a words tier, a phones tier and a pauses tier. Gaps
+    between labelled intervals are filled with empty ones, which Praat requires."""
     xmax = float(st["audio_seconds"])
     words = [w for w in st["result"]["words"] if w["end"] > w["begin"]]
     tiers = {
         "words": [(w["begin"], w["end"], w["word"]) for w in words],
         "phones": [(p["begin"], p["end"], p["ph"]) for w in words for p in w.get("phones") or []
                    if p["end"] > p["begin"]],
+        "pauses": [(p["begin"], p["end"], "pause") for p in st["result"].get("pauses", [])],
     }
 
     def filled(spans):

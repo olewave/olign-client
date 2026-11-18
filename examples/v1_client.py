@@ -5,6 +5,9 @@
     python3 v1_client.py short1.wav --transcript short1.txt -o result.json
 
 The transcript is optional: without it, olign transcribes the audio itself.
+--word-edges audible times words as a listener hears them (dubbing, subtitles;
+needs a clean recording); --align-untranscribed also aligns the speech your
+transcript leaves out (fillers, repeats).
 Uploads are capped at 100 MB, so compress long recordings first (Opus at
 32 kbit/s is about 14 MB an hour):
 
@@ -31,17 +34,21 @@ import uuid
 API = "https://api.olewave.com/olign/v1"
 # Cloudflare fronts the API and rejects some library defaults as bots
 # (HTTP 403 "error code: 1010" for Python-urllib), so name the client.
-USER_AGENT = "olign-client-example/1.0"
+USER_AGENT = "olign-client-example/1.2"
 
 
-def multipart(fields: list[tuple[str, str, bytes]]) -> tuple[bytes, str]:
+def multipart(fields: list[tuple[str, str | None, bytes]]) -> tuple[bytes, str]:
     """Build a multipart/form-data body. urllib sends it with a Content-Length,
-    which the API requires (it refuses chunked uploads)."""
+    which the API requires (it refuses chunked uploads). A field with no
+    filename is a plain form value, such as word_edges=audible."""
     boundary = uuid.uuid4().hex
     body = bytearray()
     for name, filename, data in fields:
-        body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"; "
-                 f"filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n").encode()
+        if filename is None:
+            body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n".encode()
+        else:
+            body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"; "
+                     f"filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n").encode()
         body += data + b"\r\n"
     body += f"--{boundary}--\r\n".encode()
     return bytes(body), f"multipart/form-data; boundary={boundary}"
@@ -65,6 +72,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("audio", help="any common format: wav, mp3, m4a, flac, ogg/opus, webm")
     ap.add_argument("--transcript", help="plain UTF-8 text of what is said (optional)")
+    ap.add_argument("--word-edges", choices=("phonetic", "audible"),
+                    help="phonetic (the server's default) or audible: the silence before a p, t, k, b, d or g "
+                         "stays outside its word, as dubbing and subtitles need (clean recordings)")
+    ap.add_argument("--align-untranscribed", action="store_true",
+                    help="also align the speech your transcript leaves out; those words come back "
+                         "marked \"untranscribed\": true")
     ap.add_argument("-o", "--out", default="result.json")
     ap.add_argument("--api", default=API)
     ap.add_argument("--every", type=float, default=5.0, help="poll interval, seconds")
@@ -74,6 +87,10 @@ def main() -> None:
     fields = [("audio", os.path.basename(a.audio), pathlib.Path(a.audio).read_bytes())]
     if a.transcript:
         fields.append(("transcript", os.path.basename(a.transcript), pathlib.Path(a.transcript).read_bytes()))
+    if a.word_edges:
+        fields.append(("word_edges", None, a.word_edges.encode()))
+    if a.align_untranscribed:
+        fields.append(("align_untranscribed", None, b"1"))
     body, ctype = multipart(fields)
 
     sub, _ = call(urllib.request.Request(a.api, data=body, method="POST",
@@ -97,7 +114,9 @@ def main() -> None:
     st["_versions"] = versions
     pathlib.Path(a.out).write_text(json.dumps(st, indent=1))
     r = st["result"]
-    print(f"{st['audio_seconds']:.2f} s of audio, {len(r['words'])} words -> {a.out}")
+    print(f"{st['audio_seconds']:.2f} s of audio, {len(r['words'])} words, "
+          f"{len(r.get('pauses', []))} pauses, {len(r.get('phrases', []))} phrases "
+          f"({versions.get('X-Olign-Version', '?')}) -> {a.out}")
 
 
 if __name__ == "__main__":

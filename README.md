@@ -8,21 +8,16 @@ This repo holds `olign`, the Python package and command line for the API, with
 examples and tests. The full documentation lives at
 [developers.olewave.com](https://developers.olewave.com).
 
-On [FA-Bench](https://github.com/olewave/fa-bench), an open benchmark for word
-timestamps, Qwen3 transcripts aligned by Olign 0.9 rank first of 28 pipelines.
-They reach 0.645 word boundary F1 at 20 ms, averaged over TIMIT and Buckeye,
-clean and noisy. See the
-[leaderboard](https://developers.olewave.com/leaderboard/). Olign 1.0 numbers,
-audio-only mode included, are coming soon.
-
 ## Quickstart
 
 Install the package. It runs on Python 3.9 or later and needs nothing beyond
 the standard library.
 
 ```bash
-pip install olign
+pip install "git+https://github.com/olewave/olign-client"
 ```
+
+It installs the `olign` package and command from this repo.
 
 Sign up at [tycho.olewave.com](https://tycho.olewave.com/#signup). No invitation
 code is needed. Save a card under **Billing**. Saving it charges nothing, and
@@ -44,7 +39,7 @@ olign align talk.mp3 --textgrid
 
 The command uploads `talk.mp3` and waits for the job. Then it writes
 `talk.TextGrid`. Open it in [Praat](https://www.fon.hum.uva.nl/praat/) to see a
-words tier and a phones tier.
+words, a phones and a pauses tier.
 
 ## Command line
 
@@ -60,7 +55,7 @@ after the audio, so `--srt` writes `short1.srt` here. Progress goes to stderr.
 A short summary goes to stdout.
 
 ```
-short1.wav: 4.48 s of audio, 7 words aligned to your transcript
+short1.wav: 4.48 s of audio, 7 words aligned to your transcript, 4 pauses, 2 phrases
 wrote short1.srt
 wrote short1.vtt
 wrote short1.json
@@ -68,13 +63,22 @@ wrote short1.json
 
 | flag | writes |
 |---|---|
-| `--textgrid` | a Praat TextGrid with a words tier and a phones tier |
+| `--textgrid` | a Praat TextGrid with a words, a phones and a pauses tier |
 | `--srt` | SubRip subtitles with one cue per phrase |
 | `--vtt` | WebVTT subtitles with a timestamp on every word |
 | `--csv` | one row per word |
 | `--json` | the result in the API's shape |
 
 With no output flag, `olign align` saves the JSON.
+
+Two options change what Olign does. `--word-edges audible` times words the way a
+listener hears them, for dubbing and subtitles (see
+[Word edges](#word-edges-phonetic-or-audible)). `--align-untranscribed` also
+aligns the speech your transcript leaves out, such as fillers and repeats.
+
+```bash
+olign align voiceover.wav --transcript voiceover.txt --word-edges audible --srt
+```
 
 `olign export` turns a saved result into more formats without a second upload,
 so you pay for the audio once. Try it on the sample result in this repo. It
@@ -110,23 +114,31 @@ result.to_textgrid("short1.TextGrid")
 Each line is a word with its start and end in seconds.
 
 ```
-what        0.47  0.75
-is          0.84  1.13
-better      1.21  1.89
-a           2.17  2.43
-fruit       2.43  3.05
-or          3.05  3.57
-hamburger   3.57  4.36
+what        0.47  0.80
+is          0.82  1.13
+better      1.21  2.02
+a           2.17  2.42
+fruit       2.42  3.02
+or          3.02  3.57
+hamburger   3.57  4.13
 ```
 
 Pass the transcript as a string, or as a `pathlib.Path` to a UTF-8 text file.
-Leave it out and Olign transcribes the audio.
+Leave it out and Olign transcribes the audio. `word_edges="audible"` and
+`align_untranscribed=True` are the two options of the upload.
+
+```python
+result = client.align("voiceover.wav", transcript=pathlib.Path("voiceover.txt"), word_edges="audible")
+for phrase in result.phrases:
+    print(f"{phrase.begin:5.2f} {phrase.end:5.2f}", " ".join(w.word for w in result.phrase_words(phrase)))
+print([round(p.seconds, 2) for p in result.pauses])
+```
 
 Every exporter returns the text. Give it a path and it writes the file too.
 
 | method | gives you |
 |---|---|
-| `to_textgrid()` | a Praat TextGrid with a words tier and a phones tier |
+| `to_textgrid()` | a Praat TextGrid with a words, a phones and a pauses tier |
 | `to_srt()` | SubRip subtitles with one cue per phrase, or per word with `max_words=1` |
 | `to_vtt()` | WebVTT subtitles with a timestamp tag on every word |
 | `to_csv()` | one row per word, or one per phone with `phones=True` |
@@ -164,7 +176,8 @@ The upload is `multipart/form-data`.
 |---|---|---|
 | `audio` | yes | The recording in any common audio format. At most 3 hours and 100 MB. |
 | `transcript` | no | Plain UTF-8 text of what is said. |
-| `align_untranscribed` | no | `1` to also align speech your transcript leaves out. The `olign` package does not send it yet. |
+| `align_untranscribed` | no | `1` to also align speech your transcript leaves out, such as fillers and repeats. Recordings of 15 s or less ignore it. |
+| `word_edges` | no | `phonetic` (the default) or `audible`; see [Word edges](#word-edges-phonetic-or-audible). |
 
 Ask for the job every 5 to 10 seconds until its `state` is `done` or `failed`.
 
@@ -196,6 +209,20 @@ away some library defaults with `403`. Python's `urllib` is one of them. The
 [`examples/v1_client.py`](examples/v1_client.py) makes both calls with the
 standard library alone, if you would rather not install the package.
 
+### Word edges: phonetic or audible
+
+By default (`word_edges=phonetic`) Olign times words the way phoneticians do. A
+word that starts with p, t, k, b, d or g starts when the lips or tongue close,
+and that closure is silent. Send `word_edges=audible` to time words the way a
+listener hears them, as dubbing and subtitles need. That silence then stays
+outside the word and comes back as a gap, and a breath before a word is left
+outside it too. Scores do not change.
+
+It needs a clean recording, where the silences are quiet: a voiceover, a studio
+or a quiet room. Where background noise or music fills the silences, the words
+keep their default timing. Before API v1.2.0 this option was the part
+`closure_as_silence=1`, and that still works.
+
 ### Billing headers
 
 The dashboard keeps your balance in credits. A minute of audio is 3 credits
@@ -213,25 +240,35 @@ X-Credits-Balance: 2999.5
 ## The result
 
 Once `state` is `done`, the same response carries `result`. Here is the answer
-for `examples/short1.wav`, cut to its first two words.
+for `examples/short1.wav`, its words cut to the first two.
 
 ```json
 {
-  "job_id": "6abb52b92239acba",
+  "job_id": "6afd4a9c44664347",
   "state": "done",
   "audio_seconds": 4.48,
   "transcript_source": "client",
   "result": {
     "words": [
-      {"word": "what", "begin": 0.47, "end": 0.75, "score": 55.0, "phones": [
-        {"ph": "w", "begin": 0.47, "end": 0.513, "score": 0},
-        {"ph": "ah", "begin": 0.513, "end": 0.57, "score": 62},
-        {"ph": "t", "begin": 0.57, "end": 0.75, "score": 72}
+      {"word": "what", "begin": 0.47, "end": 0.798, "score": 55.0, "phones": [
+        {"ph": "w", "begin": 0.47, "end": 0.518, "score": 0},
+        {"ph": "ah", "begin": 0.518, "end": 0.708, "score": 62},
+        {"ph": "t", "begin": 0.708, "end": 0.798, "score": 72}
       ]},
-      {"word": "is", "begin": 0.84, "end": 1.132, "score": 83.0, "phones": [
-        {"ph": "ih", "begin": 0.84, "end": 1.063, "score": 76},
-        {"ph": "z", "begin": 1.063, "end": 1.132, "score": 86}
+      {"word": "is", "begin": 0.818, "end": 1.133, "score": 83.0, "phones": [
+        {"ph": "ih", "begin": 0.818, "end": 1.053, "score": 76},
+        {"ph": "z", "begin": 1.053, "end": 1.133, "score": 86}
       ]}
+    ],
+    "pauses": [
+      {"begin": 0.0, "end": 0.47},
+      {"begin": 1.133, "end": 1.213},
+      {"begin": 2.018, "end": 2.173},
+      {"begin": 4.133, "end": 4.48}
+    ],
+    "phrases": [
+      {"begin": 0.47, "end": 2.018, "words": [0, 2]},
+      {"begin": 2.173, "end": 4.133, "words": [3, 6]}
     ]
   }
 }
@@ -247,6 +284,8 @@ The job carries these fields.
 | `transcript_source` | `client` when you sent a transcript. `asr` when Olign made one. |
 | `result` | The alignment, once `state` is `done`. |
 | `error` | Why the job failed, once `state` is `failed`. |
+
+`result` has three lists: `words`, `pauses` and `phrases`.
 
 `result.words` holds every word of your transcript, in order. Each word has
 these fields.
@@ -292,20 +331,29 @@ when you send `align_untranscribed=1`.
 ]}
 ```
 
+`result.pauses` lists, in order, every stretch of 0.05 s or more that no word
+covers: silence, a breath, a noise. The stretch before the first word and the
+one after the last are included; the last one ends at `audio_seconds`.
+
+`result.phrases` splits the words at every pause of 0.1 s or more. Each phrase
+has a `begin` and an `end`, where its speech starts and stops, and `words`, the
+positions in `result.words` of its first and last word, both included. The clip
+above is two phrases: "what is better" (words 0 to 2) and "a fruit or
+hamburger" (words 3 to 6). To cut phrases at a different length, group the
+words at the pauses yourself.
+
 Every response carries two version headers. `X-Olign-API-Version` is the version
 of this contract. `X-Olign-Version` is the Olign release that did the work.
 Timings and scores can change between releases, so store `X-Olign-Version` with
 any result you keep. The package keeps both in the JSON it saves.
 
 ```
-X-Olign-API-Version: v1.0.0
-X-Olign-Version: v1.0.0
+X-Olign-API-Version: v1.2.0
+X-Olign-Version: v1.1.3
 ```
 
 [`examples/sample_v1_result.json`](examples/sample_v1_result.json) is the whole
-answer for this clip. It was saved from the beta API, so it carries a few more
-fields than these tables list. Code against the fields above. The package reads
-only those.
+answer for this clip, saved from Olign v1.1.3 with its version headers.
 
 ## Errors
 
@@ -401,14 +449,14 @@ shows what you sent per day and per API key.
 | repeat runs | The same file can come back slightly different between submissions. Speech recognition runs on a GPU and is not bit-for-bit repeatable. |
 | your data | Olewave keeps each job's inputs and result for your account, as the beta testing agreement says. Write to info@olewave.com to have them deleted. |
 
-## Score Olign 1.0 with FA-Bench
+## Score Olign with FA-Bench
 
-FA-Bench runs Olign 1.0 through this API, one job per utterance, in two modes.
+FA-Bench runs the current Olign through this API, one job per utterance, in two modes.
 
 | FA-Bench recipe | sends | FA-Bench track |
 |---|---|---|
 | `olign_v1` | the audio and its reference transcript (`transcript_source` is `client`) | 1, alignment given the words |
-| `olign_v1_asr` | the audio alone (`transcript_source` is `asr`). Olign 1.0 recognizes the words and then aligns them. | 2, Olign's own recognizer and then its aligner |
+| `olign_v1_asr` | the audio alone (`transcript_source` is `asr`). Olign recognizes the words and then aligns them. | 2, Olign's own recognizer and then its aligner |
 
 1. **Set up FA-Bench** as [its README](https://github.com/olewave/fa-bench#readme)
    describes. The corpora are licensed separately.
@@ -435,12 +483,14 @@ hours per mode, around $24 at the launch price.
 | You want to | Use | Endpoint | Access |
 |---|---|---|---|
 | **reproduce Olign's results in the FA-Bench paper** | **v0.9** | `https://api.olewave.com/olign/v0.9` | a service token from Olewave (info@olewave.com) |
-| **get the latest Olign results** for your own recordings, or score Olign 1.0 with FA-Bench | **v1** | `https://api.olewave.com/olign/v1` | an API key from [tycho.olewave.com](https://tycho.olewave.com/#signup) |
+| **get the latest Olign results** for your own recordings, or score the current Olign with FA-Bench | **v1** | `https://api.olewave.com/olign/v1` | an API key from [tycho.olewave.com](https://tycho.olewave.com/#signup) |
 
 API v0.9 serves **Olign 0.9**, the version behind every Olign number in the
 FA-Bench paper. It takes one clip and its text per request and answers in the
-same call. The paper's table caption calls it "Olign 1.0". FA-Bench's records
-name it Olign 0.9.
+same call. The paper's first arXiv version calls it "Olign 1.0" in a table
+caption; the revised paper and FA-Bench's records name it Olign 0.9. Since
+2026-10-11 the endpoint serves Olign 0.9.1; see
+[Reproduce the FA-Bench numbers](#reproduce-the-fa-bench-numbers).
 
 ### Set up
 
@@ -487,6 +537,7 @@ The response is one JSON object.
 
 ```jsonc
 {
+  "versions": {"api": "v0.9.0"},
   "errId": 0,              // must be 0; otherwise read "error" and ignore "result"
   "error": "",
   "result": {
@@ -504,6 +555,9 @@ The response is one JSON object.
 - **All times are in milliseconds.** `begin: 470` is 0.47 s.
 - `details[]` has one entry per word of `ref_text`, even words the speaker never
   said. A near-zero `score` means the word was mispronounced *or* skipped.
+- **Keep `versions` with any score you store.** It holds the same values as the
+  `X-Olign-*-Version` headers. Answers from before 2026-10-11 23:46 UTC don't
+  have it; take the versions from their headers instead.
 
 ```python
 d = response.json()
@@ -518,6 +572,7 @@ for w in d["result"]["details"]:
 | `200` | Parse the body, then check `errId`. |
 | `400` | The audio cannot be decoded. |
 | `403` | The service token is missing or invalid. |
+| `411` | No `Content-Length` (a chunked upload). |
 | `413` | The body is over 50 MB. |
 | `422` | `ref_text` is missing. |
 
@@ -541,21 +596,20 @@ whole audio, several in parallel.
 
 Check the version first. The paper's Olign numbers are **Olign 0.9**'s, which
 this endpoint serves through API v0.9. Every response carries its versions in
-`X-Olign-*-Version` headers. For this build they read as follows.
+`X-Olign-*-Version` headers and, since 2026-10-11, in the body's `versions`.
 
-```
-X-Olign-API-Version:        v0.9.0
-X-Olign-Extractor-Version:  v1.0.0
-X-Olign-Transducer-Version: v0.1.0
-X-Olign-Analyzer-Version:   v0.9.0
-```
+**Since 2026-10-11 this endpoint serves Olign 0.9.1.** The paper's current
+version reports **Olign 0.9.0**, which is no longer served. Olign 0.9.1's word
+and phone times differ from 0.9.0's, so a run today won't match the table below
+exactly; a later version of the paper will report Olign 0.9.1. The table stays
+as the record of 0.9.0.
 
-The paper's alignments were made in August 2026 on a pre-release server. This
-public build moves individual boundaries by a few milliseconds, 8.9 ms median
-per utterance. The totals agree. Here is Buckeye test (clean), scored with
-FA-Bench's current scorer.
+What 0.9.0 gave: the paper's alignments were made in August 2026 on a
+pre-release server. The public build moved individual boundaries by a few
+milliseconds, 8.9 ms median per utterance. The totals agree. Here is Buckeye
+test (clean), scored with FA-Bench's current scorer.
 
-| Buckeye test, clean | paper | public build `98728396` |
+| Buckeye test, clean | paper | public build `98728396` (0.9.0) |
 |---|---|---|
 | word MAE (ms) | 22.5 | 22.3 |
 | word F1 @20 ms | 0.744 | 0.747 |
@@ -563,7 +617,7 @@ FA-Bench's current scorer.
 | PER (%) | 28.2 | 28.2 |
 | phone F1 @20 ms | 0.522 | 0.526 |
 
-The public build gives identical timings for the same file on every run. Allow
+The public build gave identical timings for the same file on every run. Allow
 about 0.1 ms and 0.002 for scorer drift. The current scorer gives the paper's
 own alignments 22.6 ms word MAE and 0.524 phone F1. Only Buckeye test (clean)
 has been re-measured so far.

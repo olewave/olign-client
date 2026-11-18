@@ -5,11 +5,15 @@ pin is [`OLIGN_VERSION`](OLIGN_VERSION); this table is the human summary.
 
 | olign-client | olign server | API endpoint            | notes           |
 |--------------|--------------|-------------------------|-----------------|
+| **v1.2.0**   | API **v1.2.0** (Olign 1.1) | `/olign/v1`  | `result.pauses` and `result.phrases` (API v1.1.0); `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.3's |
 | **v1.0.0**   | API **v1.0.0** | `/olign/v1`           | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
 | **v0.9.0**   | **v0.9.0**   | `/olign/v0.9`           | first release   |
 
-**v1.0 carries two APIs.** Its new client, `examples/v1_client.py`, speaks API
-v1 (`/olign/v1`, jobs; the server answers `X-Olign-Api-Version: v1.0.0`). Its
+**v1.x carries two APIs.** The `olign` package and `examples/v1_client.py`
+speak API v1 (`/olign/v1`, jobs; the server answers `X-Olign-API-Version:
+v1.2.0`). The v1 API changes are additive: a v1.0.0 request still works, and
+older clients read a newer result as long as they ignore fields they do not
+know. Its
 v0.9 clients (REST, WebSocket, gRPC) still speak v0.9.0, so
 [`OLIGN_VERSION`](OLIGN_VERSION) stays `v0.9.0`: `rest_client.sh` sends it as
 `X-Olign-Client-Version`, and a v0.9 server rejects a MAJOR.MINOR mismatch with
@@ -52,11 +56,12 @@ together. These keep them aligned, weakest to strongest:
 ## Response headers
 
 API v1 (`/olign/v1`) answers with two version headers. `X-Olign-API-Version`
-is the contract, `v1.0.0`. `X-Olign-Version` is the Olign release that did the
-work. Store `X-Olign-Version` with any result you keep. The `olign` package
+is the contract, `v1.2.0`. `X-Olign-Version` is the Olign release that did the
+work, e.g. `v1.1.3`. Store `X-Olign-Version` with any result you keep. The `olign` package
 saves both under `_versions` in the JSON it writes.
 
-Every v0.9 REST response carries four versions:
+Every v0.9 REST response carries four versions, and since 2026-10-11 the same
+values in its body as `versions`:
 
 | header | example |
 |---|---|
