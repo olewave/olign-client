@@ -5,8 +5,9 @@ its transcript if you have one. Olign tells you where every word and every
 phone starts and ends, in seconds.
 
 This repo holds `olign`, the Python package and command line for the API, with
-examples and tests. The full documentation lives at
-[developers.olewave.com](https://developers.olewave.com).
+examples and tests. This README is the documentation: the command line, the
+Python package, the HTTP API ([curl](#curl)), [the result](#the-result) and
+[errors](#errors).
 
 ## Quickstart
 
