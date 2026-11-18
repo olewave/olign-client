@@ -5,9 +5,9 @@ API from Olewave. You send English speech, with its transcript if you have one.
 Olign tells you where every word and every phone starts and ends, in seconds.
 Without a transcript, Olign transcribes the audio first and then aligns it.
 
-On [FA-Bench](https://github.com/olewave/fa-bench), an open benchmark for word
-timestamps, Qwen3 transcripts aligned by Olign 0.9 rank first of 28 pipelines.
-Olign 1.0 numbers, audio-only mode included, are coming soon.
+Each result also lists the pauses between the words and the phrases they
+form, and `word_edges="audible"` times words the way a listener hears them, for
+dubbing and subtitles.
 
 ## Install
 
@@ -29,8 +29,8 @@ export OLIGN_KEY=gvk_your_key
 
 ## Command line
 
-One line uploads a recording and writes a Praat TextGrid with a words tier and
-a phones tier.
+One line uploads a recording and writes a Praat TextGrid with a words, a
+phones and a pauses tier.
 
 ```bash
 olign align talk.mp3 --transcript talk.txt --textgrid
@@ -76,7 +76,5 @@ promotion.
 ## Learn more
 
 The documentation lives at
-[developers.olewave.com](https://developers.olewave.com). The
-[leaderboard](https://developers.olewave.com/leaderboard/) ranks every pipeline
-on FA-Bench. The source, with more examples, is on
-[GitHub](https://github.com/olewave/olign-client).
+[developers.olewave.com](https://developers.olewave.com). The source, with more
+examples, is on [GitHub](https://github.com/olewave/olign-client).

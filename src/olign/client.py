@@ -51,25 +51,42 @@ class Client:
     # -- the three calls -----------------------------------------------------
 
     def align(self, audio_path: PathLike, transcript: Transcript = None, poll: bool = True,
-              on_progress: Optional[Progress] = None) -> Result:
+              on_progress: Optional[Progress] = None, *, word_edges: Optional[str] = None,
+              align_untranscribed: bool = False) -> Result:
         """Align a recording and return its words.
 
         ``transcript`` is optional. Pass the text as a ``str``, or a
         ``pathlib.Path`` to a UTF-8 text file. Without it, olign transcribes
         the audio first, then aligns. With ``poll=False`` the call returns as
         soon as the job is accepted, and :meth:`wait` finishes it.
+
+        ``word_edges`` is ``"phonetic"`` (the API's default) or ``"audible"``:
+        words then start and end where a listener hears them, as dubbing and
+        subtitles need (the silence before a p, t, k, b, d or g stays outside
+        its word; for clean recordings). ``align_untranscribed=True`` also
+        aligns the speech your transcript leaves out; those words come back
+        with ``untranscribed`` set.
         """
-        job = self.submit(audio_path, transcript)
+        job = self.submit(audio_path, transcript, word_edges=word_edges,
+                          align_untranscribed=align_untranscribed)
         if on_progress:
             on_progress(job)
         return self.wait(job.job_id, on_progress=on_progress) if poll else job
 
-    def submit(self, audio_path: PathLike, transcript: Transcript = None) -> Result:
-        """Upload the audio and return the accepted job, still queued."""
+    def submit(self, audio_path: PathLike, transcript: Transcript = None, *,
+               word_edges: Optional[str] = None, align_untranscribed: bool = False) -> Result:
+        """Upload the audio and return the accepted job, still queued.
+        Takes the options of :meth:`align`."""
+        if word_edges not in (None, "phonetic", "audible"):
+            raise ValueError(f"word_edges must be 'phonetic' or 'audible', not {word_edges!r}")
         audio = pathlib.Path(audio_path)
-        fields = [("audio", audio.name, audio.read_bytes())]
+        fields: List[Tuple[str, Optional[str], bytes]] = [("audio", audio.name, audio.read_bytes())]
         if transcript is not None:
             fields.append(("transcript", "transcript.txt", _transcript_bytes(transcript)))
+        if word_edges:
+            fields.append(("word_edges", None, word_edges.encode()))
+        if align_untranscribed:
+            fields.append(("align_untranscribed", None, b"1"))
         body, ctype = _multipart(fields)
         d, headers = self._call("POST", self.base_url, body, ctype)
         if not d.get("job_id"):
@@ -169,11 +186,16 @@ def _transcript_bytes(t: Transcript) -> bytes:
     return pathlib.Path(t).read_bytes()
 
 
-def _multipart(fields: List[Tuple[str, str, bytes]]) -> Tuple[bytes, str]:
-    """A multipart/form-data body with a known length: the API refuses chunked uploads."""
+def _multipart(fields: List[Tuple[str, Optional[str], bytes]]) -> Tuple[bytes, str]:
+    """A multipart/form-data body with a known length: the API refuses chunked
+    uploads. A field without a filename is a plain form value."""
     boundary = uuid.uuid4().hex
     body = bytearray()
     for name, filename, data in fields:
+        if filename is None:
+            body += f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'.encode()
+            body += data + b"\r\n"
+            continue
         filename = filename.replace('"', "_").replace("\r", "_").replace("\n", "_")
         body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; '
                  f'filename="{filename}"\r\nContent-Type: application/octet-stream\r\n\r\n').encode()

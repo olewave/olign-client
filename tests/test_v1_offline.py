@@ -39,11 +39,18 @@ class ProcessSampleResult(unittest.TestCase):
              "--textgrid", str(cls.tmp / "sample.TextGrid")],
             capture_output=True, text=True, check=True).stdout
 
-    def test_summary_names_the_audio_and_the_weakest_word(self):
-        words = self.result["result"]["words"]
-        self.assertIn(f"{len(words)} spoken", self.out)
-        weakest = min(words, key=lambda w: w["score"])["word"]
-        self.assertIn(weakest, self.out.split("weakest")[1])
+    def test_summary_names_the_audio_the_phrases_and_the_least_certain_word(self):
+        r = self.result["result"]
+        self.assertIn(f"{len(r['words'])} spoken", self.out)
+        self.assertIn(f"{len(r['phrases'])} phrase(s)", self.out)
+        weakest = min(r["words"], key=lambda w: w["score"])["word"]
+        self.assertIn(weakest, self.out.split("least certain")[1])
+
+    def test_sample_is_the_public_v1_result(self):
+        # what the API returns once a job is done: these fields and nothing else
+        self.assertEqual(set(self.result) - {"_versions"},
+                         {"job_id", "state", "audio_seconds", "transcript_source", "result"})
+        self.assertEqual(set(self.result["result"]), {"words", "pauses", "phrases"})
 
     def test_csvs_hold_every_word_and_phone(self):
         words = self.result["result"]["words"]
@@ -51,11 +58,13 @@ class ProcessSampleResult(unittest.TestCase):
         self.assertEqual([r["word"] for r in rows], [w["word"] for w in words])
         phones = list(csv.DictReader((self.tmp / "phones.csv").read_text().splitlines()))
         self.assertEqual(len(phones), sum(len(w["phones"]) for w in words))
+        pauses = list(csv.DictReader((self.tmp / "pauses.csv").read_text().splitlines()))
+        self.assertEqual(len(pauses), len(self.result["result"]["pauses"]))
 
     def test_textgrid_tiers_cover_the_audio_without_gaps_or_overlaps(self):
         xmax = self.result["audio_seconds"]
         tiers = textgrid_tiers((self.tmp / "sample.TextGrid").read_text())
-        self.assertEqual(set(tiers), {"words", "phones"})
+        self.assertEqual(set(tiers), {"words", "phones", "pauses"})
         for name, iv in tiers.items():
             self.assertAlmostEqual(iv[0][0], 0.0, msg=name)
             self.assertAlmostEqual(iv[-1][1], xmax, msg=name)

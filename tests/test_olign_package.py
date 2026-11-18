@@ -34,7 +34,7 @@ TRANSCRIPT = ROOT / "examples" / "short1.txt"
 # Every field the public v1 response can carry (docs/api_v1.md). The client
 # must work on a response that holds these and nothing else.
 PUBLIC_JOB = ("job_id", "state", "audio_seconds", "transcript_source", "result", "error")
-PUBLIC_RESULT = ("words",)
+PUBLIC_RESULT = ("words", "pauses", "phrases")
 PUBLIC_WORD = ("word", "begin", "end", "score", "phones", "spoken", "annotation", "untranscribed")
 PUBLIC_PHONE = ("ph", "begin", "end", "score")
 
@@ -78,19 +78,20 @@ class Exporters(unittest.TestCase):
         self.words = sample()["result"]["words"]
 
     def test_load_reads_the_job_and_every_word(self):
-        self.assertEqual(self.r.job_id, "6abb52b92239acba")
+        self.assertEqual(self.r.job_id, "6afd4a9c44664347")
         self.assertTrue(self.r.done)
         self.assertEqual(self.r.audio_seconds, 4.48)
         self.assertEqual(self.r.transcript_source, "client")
         self.assertEqual(self.r.text, "what is better a fruit or hamburger")
         w = self.r.words[0]
-        self.assertEqual((w.word, w.begin, w.end, w.score), ("what", 0.47, 0.75, 55.0))
+        self.assertEqual((w.word, w.begin, w.end, w.score), ("what", 0.47, 0.798, 55.0))
         self.assertEqual([p.ph for p in w.phones], ["w", "ah", "t"])
-        self.assertEqual(self.r.api_version, "v1.0.0")
+        self.assertEqual(self.r.api_version, "v1.2.0")
+        self.assertEqual(self.r.olign_version, "v1.1.3")
 
     def test_textgrid_tiers_cover_the_audio_without_gaps_or_overlaps(self):
         tiers = textgrid_tiers(self.r.to_textgrid())
-        self.assertEqual(list(tiers), ["words", "phones"])
+        self.assertEqual(list(tiers), ["words", "phones", "pauses"])
         for name, iv in tiers.items():
             self.assertAlmostEqual(iv[0][0], 0.0, msg=name)
             self.assertAlmostEqual(iv[-1][1], 4.48, msg=name)
@@ -98,45 +99,63 @@ class Exporters(unittest.TestCase):
                 self.assertAlmostEqual(e1, b2, msg=f"{name}: gap or overlap at {e1}")
         self.assertEqual([t for _, _, t in tiers["words"] if t], [w["word"] for w in self.words])
         self.assertEqual(len([t for _, _, t in tiers["phones"] if t]), sum(len(w["phones"]) for w in self.words))
+        self.assertEqual(len([t for _, _, t in tiers["pauses"] if t]), len(sample()["result"]["pauses"]))
+
+    def test_pauses_and_phrases(self):
+        self.assertEqual([(p.begin, p.end) for p in self.r.pauses],
+                         [(0.0, 0.47), (1.133, 1.213), (2.018, 2.173), (4.133, 4.48)])
+        self.assertAlmostEqual(self.r.pauses[2].seconds, 0.155)
+        self.assertEqual([(p.first, p.last) for p in self.r.phrases], [(0, 2), (3, 6)])
+        self.assertEqual([w.word for w in self.r.phrase_words(self.r.phrases[1])], ["a", "fruit", "or", "hamburger"])
+
+    def test_untranscribed_words_round_trip(self):
+        d = sample()
+        d["result"]["words"].insert(3, {"word": "um", "begin": 2.02, "end": 2.17, "score": 71.0,
+                                        "untranscribed": True, "phones": []})
+        r = olign.Result.from_dict(d)
+        self.assertTrue(r.words[3].untranscribed)
+        self.assertFalse(r.words[2].untranscribed)
+        self.assertTrue(json.loads(r.to_json())["result"]["words"][3]["untranscribed"])
 
     def test_srt_groups_the_sentence_into_one_cue(self):
         self.assertEqual(self.r.to_srt(),
-                         "1\n00:00:00,470 --> 00:00:04,360\nwhat is better a fruit or hamburger\n")
+                         "1\n00:00:00,470 --> 00:00:04,133\nwhat is better a fruit or hamburger\n")
 
     def test_srt_one_word_per_cue(self):
         srt = self.r.to_srt(max_words=1)
         cues = srt.strip().split("\n\n")
         self.assertEqual(len(cues), 7)
-        self.assertEqual(cues[1], "2\n00:00:00,840 --> 00:00:01,132\nis")
+        self.assertEqual(cues[1], "2\n00:00:00,818 --> 00:00:01,133\nis")
 
     def test_srt_breaks_on_length_and_pauses(self):
         self.assertEqual(len(self.r.cues(max_chars=10)), 4)  # "what is", "better a", "fruit or", "hamburger"
-        self.assertEqual([len(c) for c in self.r.cues(max_gap=0.2)], [3, 4])  # 0.283 s pause after "better"
+        self.assertEqual([len(c) for c in self.r.cues(max_gap=0.15)], [3, 4])  # 0.155 s pause after "better"
 
     def test_vtt_tags_every_word_after_the_first(self):
         vtt = self.r.to_vtt()
-        self.assertTrue(vtt.startswith("WEBVTT\n\n00:00:00.470 --> 00:00:04.360\n"))
+        self.assertTrue(vtt.startswith("WEBVTT\n\n00:00:00.470 --> 00:00:04.133\n"))
         tags = re.findall(r"<(\d\d:\d\d:\d\d\.\d\d\d)>", vtt)
         self.assertEqual(len(tags), 6)
         self.assertEqual(tags, sorted(tags))
-        self.assertIn("what <00:00:00.840>is <00:00:01.213>better", vtt)
+        self.assertIn("what <00:00:00.818>is <00:00:01.213>better", vtt)
         self.assertNotIn("<0", self.r.to_vtt(word_timing=False))
 
     def test_csv_words_and_phones(self):
         rows = self.r.to_csv().splitlines()
         self.assertEqual(rows[0], "index,word,begin,end,score,spoken")
-        self.assertEqual(rows[1], "0,what,0.47,0.75,55,true")
+        self.assertEqual(rows[1], "0,what,0.47,0.798,55,true")
         self.assertEqual(len(rows), 1 + 7)
         phones = self.r.to_csv(phones=True).splitlines()
-        self.assertEqual(phones[1], "0,what,w,0.47,0.513,0")
+        self.assertEqual(phones[1], "0,what,w,0.47,0.518,0")
         self.assertEqual(len(phones), 1 + 23)
 
     def test_json_round_trip_keeps_only_public_fields(self):
         d = json.loads(self.r.to_json())
         self.assertEqual(set(d), {"job_id", "state", "audio_seconds", "transcript_source", "result", "_versions"})
-        self.assertEqual(set(d["result"]), {"words"})
+        self.assertEqual(set(d["result"]), {"words", "pauses", "phrases"})
         back = olign.Result.from_dict(d)
         self.assertEqual(back.words, self.r.words)
+        self.assertEqual((back.pauses, back.phrases), (self.r.pauses, self.r.phrases))
         self.assertEqual(back.audio_seconds, 4.48)
 
     def test_exporters_write_files_when_given_a_path(self):
@@ -151,7 +170,7 @@ class Exporters(unittest.TestCase):
         self.assertIsNone(r.words[0].score)
         self.assertEqual(r.to_srt(), self.r.to_srt())
         self.assertEqual(textgrid_tiers(r.to_textgrid()), textgrid_tiers(self.r.to_textgrid()))
-        self.assertEqual(r.to_csv().splitlines()[1], "0,what,0.47,0.75,,true")
+        self.assertEqual(r.to_csv().splitlines()[1], "0,what,0.47,0.798,,true")
         self.assertNotIn("score", r.to_json())
 
     def test_unspoken_words_and_tags_stay_off_the_timeline(self):
@@ -234,7 +253,7 @@ class FakeAPI(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
-        self.send_header("X-Olign-Api-Version", "v1.1.0")
+        self.send_header("X-Olign-Api-Version", "v1.2.0")
         for k, v in (headers or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -292,8 +311,8 @@ class RoundTrip(unittest.TestCase):
         seen = []
         r = self.client.align(AUDIO, transcript=TRANSCRIPT, on_progress=lambda x: seen.append(x.state))
         self.assertEqual(r.text, "what is better a fruit or hamburger")
-        self.assertEqual(r.job_id, "6abb52b92239acba")
-        self.assertEqual(r.api_version, "v1.1.0")
+        self.assertEqual(r.job_id, "6afd4a9c44664347")
+        self.assertEqual(r.api_version, "v1.2.0")
         self.assertEqual(seen, ["queued", "running", "done"])
         up = FakeAPI.uploads[0]
         self.assertTrue(up["ctype"].startswith("multipart/form-data; boundary="))
@@ -309,6 +328,17 @@ class RoundTrip(unittest.TestCase):
         FakeAPI.polls = {}
         self.client.align(AUDIO)
         self.assertNotIn(b'name="transcript"', FakeAPI.uploads[1]["body"])
+
+    def test_word_edges_and_align_untranscribed_are_sent_as_form_fields(self):
+        self.client.align(AUDIO, transcript=TRANSCRIPT, word_edges="audible", align_untranscribed=True)
+        body = FakeAPI.uploads[0]["body"]
+        self.assertIn(b'name="word_edges"\r\n\r\naudible\r\n', body)
+        self.assertIn(b'name="align_untranscribed"\r\n\r\n1\r\n', body)
+        FakeAPI.uploads, FakeAPI.polls = [], {}
+        self.client.align(AUDIO, transcript=TRANSCRIPT)
+        self.assertNotIn(b"word_edges", FakeAPI.uploads[0]["body"])
+        with self.assertRaises(ValueError):
+            self.client.submit(AUDIO, word_edges="loud")
 
     def test_poll_false_returns_the_queued_job(self):
         job = self.client.align(AUDIO, poll=False)
@@ -369,7 +399,7 @@ class RoundTrip(unittest.TestCase):
                 code = cli.main(["align", str(AUDIO), "--transcript", str(TRANSCRIPT),
                                  "--textgrid", str(tg), "--json", str(js), "--every", "0"])
             self.assertEqual(code, 0, err.getvalue())
-            self.assertEqual(out.getvalue(), "short1.wav: 4.48 s of audio, 7 words aligned to your transcript\n"
+            self.assertEqual(out.getvalue(), "short1.wav: 4.48 s of audio, 7 words aligned to your transcript, 4 pauses, 2 phrases\n"
                                              f"wrote {tg}\nwrote {js}\n")
             self.assertIn("olign: job job1 queued", err.getvalue())
             self.assertIn("olign: running 50%", err.getvalue())

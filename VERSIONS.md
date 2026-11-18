@@ -5,11 +5,15 @@ pin is [`OLIGN_VERSION`](OLIGN_VERSION); this table is the human summary.
 
 | olign-client | olign server | API endpoint            | notes           |
 |--------------|--------------|-------------------------|-----------------|
+| **v1.2.0**   | API **v1.2.0** (Olign 1.1) | `/olign/v1`  | `result.pauses` and `result.phrases` (API v1.1.0); `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.3's |
 | **v1.0.0**   | API **v1.0.0** | `/olign/v1`           | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
 | **v0.9.0**   | **v0.9.0**   | `/olign/v0.9`           | first release   |
 
-**v1.0 carries two APIs.** Its new client, `examples/v1_client.py`, speaks API
-v1 (`/olign/v1`, jobs; the server answers `X-Olign-Api-Version: v1.0.0`). Its
+**v1.x carries two APIs.** The `olign` package and `examples/v1_client.py`
+speak API v1 (`/olign/v1`, jobs; the server answers `X-Olign-API-Version:
+v1.2.0`). The v1 API changes are additive: a v1.0.0 request still works, and
+older clients read a newer result as long as they ignore fields they do not
+know. Its
 v0.9 clients (REST, WebSocket, gRPC) still speak v0.9.0, so
 [`OLIGN_VERSION`](OLIGN_VERSION) stays `v0.9.0`: `rest_client.sh` sends it as
 `X-Olign-Client-Version`, and a v0.9 server rejects a MAJOR.MINOR mismatch with
@@ -51,32 +55,25 @@ together. These keep them aligned, weakest to strongest:
 
 ## Response headers
 
-API v1 (`/olign/v1`) answers with two version headers. `X-Olign-API-Version`
-is the contract, `v1.0.0`. `X-Olign-Version` is the Olign release that did the
-work. Store `X-Olign-Version` with any result you keep. The `olign` package
-saves both under `_versions` in the JSON it writes.
-
-Every v0.9 REST response carries four versions:
+Every REST response carries its API version, and a `/olign/v1` response also
+names the Olign release that did the work. A v0.9 answer also carries its
+versions in its body, as `versions`, since 2026-10-11:
 
 | header | example |
 |---|---|
-| `X-Olign-Api-Version` | `v0.9.0`, the wire contract you are talking to |
-| `X-Olign-Extractor-Version` | `v1.0.0` |
-| `X-Olign-Transducer-Version` | `v0.1.0` |
-| `X-Olign-Analyzer-Version` | `v0.9.0` |
+| `X-Olign-Api-Version` | `v0.9.0` (`v1.2.0` on `/olign/v1`), the wire contract you are talking to |
+| `X-Olign-Version` | `v1.1.3`, the Olign release; `/olign/v1` only |
 
-**Log all four alongside any v0.9 score you store.** Scores move when Olign is
-upgraded, and these are what let you tell *"the speaker changed"* from *"the
-yardstick changed"*. They are reported
-only: there is no way to request a particular version, and a given deployment
-serves exactly one of each.
+**Log the release alongside any score you store.** Scores move when Olign is
+upgraded, and the release is what lets you tell *"the speaker changed"* from
+*"the yardstick changed"*. On `/olign/v1` that is `X-Olign-Version`; the
+`olign` package saves both headers under `_versions` in the JSON it writes.
+`/olign/v0.9` doesn't send it, so log the API version and the date; the README
+says which release that endpoint served when. Versions are reported only: there
+is no way to request a particular one.
 
 `X-Olign-Api-Version` is published in full but only `MAJOR.MINOR` is enforced,
 so `v0.9.0` and `v0.9.1` interoperate.
-
-> **Scores are not bit-reproducible across versions**, and historically were
-> not reproducible even for identical input on one server. That is fixed as of
-> `X-Olign-Extractor-Version` `v0.5.0`.
 
 **Why vendor the protos instead of using a git submodule?** olign-client is for
 external developers who do not have access to the private olign server repo. A

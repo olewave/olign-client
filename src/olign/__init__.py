@@ -9,7 +9,7 @@
     result.to_textgrid("talk.TextGrid")
 """
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"
 
 from .client import Client  # noqa: E402
 from .errors import (  # noqa: E402
@@ -22,10 +22,10 @@ from .errors import (  # noqa: E402
     PaymentRequiredError,
     UsageLimitError,
 )
-from .result import Phone, Result, Word  # noqa: E402
+from .result import Pause, Phone, Phrase, Result, Word  # noqa: E402
 
 __all__ = [
-    "Client", "Result", "Word", "Phone",
+    "Client", "Result", "Word", "Phone", "Pause", "Phrase",
     "OlignError", "APIError", "AuthenticationError", "PaymentRequiredError", "AudioTooLargeError",
     "UsageLimitError", "JobFailedError", "ConnectionFailedError",
     "__version__",
