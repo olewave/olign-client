@@ -75,6 +75,5 @@ promotion.
 
 ## Learn more
 
-The documentation lives at
-[developers.olewave.com](https://developers.olewave.com). The source, with more
-examples, is on [GitHub](https://github.com/olewave/olign-client).
+The documentation, the source and more examples are on
+[GitHub](https://github.com/olewave/olign-client).
