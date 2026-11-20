@@ -29,7 +29,6 @@ dependencies = []
 Homepage = "https://olewave.com"
 Documentation = "https://github.com/olewave/olign-client#readme"
 Source = "https://github.com/olewave/olign-client"
-Cookbook = "https://github.com/olewave/olign-cookbook"
 Benchmark = "https://github.com/olewave/fa-bench"
 
 [project.scripts]
