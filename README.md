@@ -155,9 +155,6 @@ print(job.job_id)  # keep it, and come back later
 result = client.wait(job.job_id)
 ```
 
-The [olign cookbook](https://github.com/olewave/olign-cookbook) has runnable
-recipes and Colab notebooks built on this package.
-
 ## curl
 
 The API takes two calls. You upload the audio and get a job id back. Then you
