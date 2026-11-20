@@ -19,8 +19,9 @@ pip install olign
 ```
 
 Sign up at [tycho.olewave.com](https://tycho.olewave.com/#signup). No invitation
-code is needed. Save a card under **Billing**. Saving it charges nothing, and
-during the launch promotion it unlocks 1,000 free minutes. Then create an API
+code is needed, and a new account starts with 300 free credits. Save a card under
+**Billing** for 3,000 more: 1,000 minutes of audio at the launch promotion's price.
+Saving it charges nothing. Then create an API
 key under **Profile → API keys** and put it in `OLIGN_KEY`.
 
 ```bash
@@ -69,9 +70,9 @@ better      1.21  1.89
 
 ## Pricing
 
-Olign costs $0.18 an hour of audio during the launch promotion and $0.21 an hour
-after it. Save a card and your first 1,000 minutes are free during the
-promotion.
+You pay in prepaid credits, and 1,000 credits cost $1. A minute of audio is 3 credits
+during the launch promotion ($0.18 an hour) and 3.5 after it ($0.21 an hour).
+Saving a card adds 3,000 free credits, and credits never expire.
 
 ## Learn more
 

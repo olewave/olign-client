@@ -21,8 +21,9 @@ pip install "git+https://github.com/olewave/olign-client"
 It installs the `olign` package and command from this repo.
 
 Sign up at [tycho.olewave.com](https://tycho.olewave.com/#signup). No invitation
-code is needed. Save a card under **Billing**. Saving it charges nothing, and
-during the launch promotion it unlocks 1,000 free minutes. Then create an API
+code is needed, and a new account starts with 300 free credits. Save a card under
+**Billing** for 3,000 more: 1,000 minutes of audio at the launch promotion's price.
+Saving it charges nothing. Then create an API
 key under **Profile → API keys**.
 
 The key is shown once and it identifies your account. Keep it in an environment
@@ -369,7 +370,7 @@ the reason.
 |---|---|
 | `400` | The file is empty or is not audio Olign can decode. |
 | `401` | The API key is missing, invalid or revoked. |
-| `402` | Your free minutes and balance are used up, or the recording is longer than they pay for. Add a card or buy more on the dashboard under **Billing**. |
+| `402` | Your credits are used up, or the recording is longer than they pay for. Add a card or buy more on the dashboard under **Billing**. |
 | `403` | Cloudflare refused the request. Send your own `User-Agent`. |
 | `404` | The job id is unknown or belongs to another key. A job still running when the service restarted also answers `404`, so submit it again. |
 | `411` | The upload has no `Content-Length`, as a chunked upload does. |
@@ -423,17 +424,15 @@ except olign.JobFailedError as e:
 ## Pricing
 
 You pay for the length of the audio you send. Olign costs $0.21 an hour. During
-the launch promotion it costs $0.18 an hour. For comparison, ElevenLabs charges
-$0.22 an hour for forced alignment
-([elevenlabs.io/pricing/api](https://elevenlabs.io/pricing/api), October 2026).
+the launch promotion it costs $0.18 an hour.
 
 A 45-minute lecture costs about 14 cents at the launch price.
 
-Save a card and your first 1,000 minutes are free during the launch promotion.
-Saving it charges nothing. Those minutes cover 22 lectures of that length.
+Save a card and you get 3,000 free credits, 1,000 minutes at the launch price.
+Saving it charges nothing. That covers 22 lectures of that length.
 
 Each job is metered on its `audio_seconds`, rounded up to the second. A job is
-billed for at least 10 seconds. A job that fails costs nothing, and its minutes
+billed for at least 10 seconds. A job that fails costs nothing, and its credits
 go back to your balance.
 
 You can set a monthly limit under **Settings** on the dashboard. Once your usage
