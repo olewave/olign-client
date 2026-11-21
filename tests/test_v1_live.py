@@ -1,7 +1,7 @@
 """Live checks against the olign API v1: each clip in test-data/cases.json goes
 through examples/v1_client.py and the answer is checked. Needs a key:
 
-    export OLIGN_KEY=gvk_...            # https://tycho.olewave.com -> Profile -> API keys
+    export OLIGN_KEY=gvk_...            # https://dashboard.olewave.com -> Profile -> API keys
     python3 -m unittest tests.test_v1_live -v
 
 Skipped without OLIGN_KEY. Allow about a minute. One run sends 5.5 minutes

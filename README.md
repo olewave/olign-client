@@ -20,7 +20,7 @@ pip install olign
 
 It installs the `olign` package and command from this repo.
 
-Sign up at [tycho.olewave.com](https://tycho.olewave.com/#signup). No invitation
+Sign up at [dashboard.olewave.com](https://dashboard.olewave.com/#signup). No invitation
 code is needed, and a new account starts with 300 free credits. Save a card under
 **Billing** for 3,000 more: 1,000 minutes of audio at the launch promotion's price.
 Saving it charges nothing. Then create an API
@@ -243,7 +243,7 @@ for `examples/short1.wav`, its words cut to the first two.
 
 ```json
 {
-  "job_id": "6b010178327744f3",
+  "job_id": "6b0167d8f3956c2d",
   "state": "done",
   "audio_seconds": 4.48,
   "transcript_source": "client",
@@ -347,12 +347,12 @@ Timings and scores can change between releases, so store `X-Olign-Version` with
 any result you keep. The package keeps both in the JSON it saves.
 
 ```
-X-Olign-API-Version: v1.1.4
-X-Olign-Version: v1.1.4
+X-Olign-API-Version: v1.1.5
+X-Olign-Version: v1.1.5
 ```
 
 [`examples/sample_v1_result.json`](examples/sample_v1_result.json) is the whole
-answer for this clip, saved from Olign v1.1.4 with its version headers.
+answer for this clip, saved from Olign v1.1.5 with its version headers.
 
 ## Errors
 
@@ -480,7 +480,7 @@ hours per mode, around $24 at the launch price.
 | You want to | Use | Endpoint | Access |
 |---|---|---|---|
 | **reproduce Olign's results in the FA-Bench paper** | **v0.9** | `https://api.olewave.com/olign/v0.9` | a service token from Olewave (info@olewave.com) |
-| **get the latest Olign results** for your own recordings, or score the current Olign with FA-Bench | **v1** | `https://api.olewave.com/olign/v1` | an API key from [tycho.olewave.com](https://tycho.olewave.com/#signup) |
+| **get the latest Olign results** for your own recordings, or score the current Olign with FA-Bench | **v1** | `https://api.olewave.com/olign/v1` | an API key from [dashboard.olewave.com](https://dashboard.olewave.com/#signup) |
 
 API v0.9 serves **Olign 0.9**, the version behind every Olign number in the
 FA-Bench paper. It takes one clip and its text per request and answers in the

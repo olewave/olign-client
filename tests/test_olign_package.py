@@ -78,7 +78,7 @@ class Exporters(unittest.TestCase):
         self.words = sample()["result"]["words"]
 
     def test_load_reads_the_job_and_every_word(self):
-        self.assertEqual(self.r.job_id, "6b010178327744f3")
+        self.assertEqual(self.r.job_id, "6b0167d8f3956c2d")
         self.assertTrue(self.r.done)
         self.assertEqual(self.r.audio_seconds, 4.48)
         self.assertEqual(self.r.transcript_source, "client")
@@ -86,8 +86,8 @@ class Exporters(unittest.TestCase):
         w = self.r.words[0]
         self.assertEqual((w.word, w.begin, w.end, w.score), ("what", 0.47, 0.798, 55.0))
         self.assertEqual([p.ph for p in w.phones], ["w", "ah", "t"])
-        self.assertEqual(self.r.api_version, "v1.1.4")
-        self.assertEqual(self.r.olign_version, "v1.1.4")
+        self.assertEqual(self.r.api_version, "v1.1.5")
+        self.assertEqual(self.r.olign_version, "v1.1.5")
 
     def test_textgrid_tiers_cover_the_audio_without_gaps_or_overlaps(self):
         tiers = textgrid_tiers(self.r.to_textgrid())
@@ -253,7 +253,7 @@ class FakeAPI(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
-        self.send_header("X-Olign-Api-Version", "v1.1.4")
+        self.send_header("X-Olign-Api-Version", "v1.1.5")
         for k, v in (headers or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -311,8 +311,8 @@ class RoundTrip(unittest.TestCase):
         seen = []
         r = self.client.align(AUDIO, transcript=TRANSCRIPT, on_progress=lambda x: seen.append(x.state))
         self.assertEqual(r.text, "what is better a fruit or hamburger")
-        self.assertEqual(r.job_id, "6b010178327744f3")
-        self.assertEqual(r.api_version, "v1.1.4")
+        self.assertEqual(r.job_id, "6b0167d8f3956c2d")
+        self.assertEqual(r.api_version, "v1.1.5")
         self.assertEqual(seen, ["queued", "running", "done"])
         up = FakeAPI.uploads[0]
         self.assertTrue(up["ctype"].startswith("multipart/form-data; boundary="))

@@ -7,13 +7,14 @@ number, and a first upload with it was withdrawn.
 
 | olign-client | Olign | API | endpoint | notes |
 |--------------|-------|-----|----------|-------|
-| **v1.1.4**   | **v1.1.4** | **v1.1.4** | `/olign/v1` | first release on PyPI (`pip install olign`); `result.pauses` and `result.phrases`, `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.4's |
+| **v1.1.5**   | **v1.1.5** | **v1.1.5** | `/olign/v1` | the dashboard is now dashboard.olewave.com (tycho.olewave.com redirects there); Olign's results are v1.1.4's; the sample result is Olign v1.1.5's |
+| **v1.1.4**   | v1.1.4 | v1.1.4 | `/olign/v1` | first release on PyPI (`pip install olign`); `result.pauses` and `result.phrases`, `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.4's |
 | **v1.0.0**   | v1.0.0 | v1.0.0 | `/olign/v1` | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
 | **v0.9.0**   | v0.9.0 | v0.9.0 | `/olign/v0.9` | first release |
 
 **v1.x carries two APIs.** The `olign` package and `examples/v1_client.py`
 speak API v1 (`/olign/v1`, jobs; the server answers `X-Olign-API-Version:
-v1.1.4`). The v1 API changes are additive: a v1.0.0 request still works, and
+v1.1.5`). The v1 API changes are additive: a v1.0.0 request still works, and
 older clients read a newer result as long as they ignore fields they do not
 know. Its
 v0.9 clients (REST, WebSocket, gRPC) still speak v0.9.0, so
@@ -61,8 +62,8 @@ versions in its body, as `versions`, since 2026-10-11:
 
 | header | example |
 |---|---|
-| `X-Olign-Api-Version` | `v0.9.0` (`v1.1.4` on `/olign/v1`), the wire contract you are talking to |
-| `X-Olign-Version` | `v1.1.4`, the Olign release; `/olign/v1` only |
+| `X-Olign-Api-Version` | `v0.9.0` (`v1.1.5` on `/olign/v1`), the wire contract you are talking to |
+| `X-Olign-Version` | `v1.1.5`, the Olign release; `/olign/v1` only |
 
 **Log the release alongside any score you store.** Scores move when Olign is
 upgraded, and the release is what lets you tell *"the speaker changed"* from
