@@ -1,17 +1,19 @@
 # Version map
 
-Which **olign server release** each client release targets. The machine-readable
-pin is [`OLIGN_VERSION`](OLIGN_VERSION); this table is the human summary.
+Since v1.1.4 the `olign` package, Olign and its API share **one version
+number**: every Olign release ships a package release with the same number,
+even when the client did not change. 1.2.0 is skipped: PyPI never reuses a
+number, and a first upload with it was withdrawn.
 
-| olign-client | olign server | API endpoint            | notes           |
-|--------------|--------------|-------------------------|-----------------|
-| **v1.2.0**   | API **v1.2.0** (Olign 1.1) | `/olign/v1`  | `result.pauses` and `result.phrases` (API v1.1.0); `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.3's |
-| **v1.0.0**   | API **v1.0.0** | `/olign/v1`           | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
-| **v0.9.0**   | **v0.9.0**   | `/olign/v0.9`           | first release   |
+| olign-client | Olign | API | endpoint | notes |
+|--------------|-------|-----|----------|-------|
+| **v1.1.4**   | **v1.1.4** | **v1.1.4** | `/olign/v1` | first release on PyPI (`pip install olign`); `result.pauses` and `result.phrases`, `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.4's |
+| **v1.0.0**   | v1.0.0 | v1.0.0 | `/olign/v1` | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
+| **v0.9.0**   | v0.9.0 | v0.9.0 | `/olign/v0.9` | first release |
 
 **v1.x carries two APIs.** The `olign` package and `examples/v1_client.py`
 speak API v1 (`/olign/v1`, jobs; the server answers `X-Olign-API-Version:
-v1.2.0`). The v1 API changes are additive: a v1.0.0 request still works, and
+v1.1.4`). The v1 API changes are additive: a v1.0.0 request still works, and
 older clients read a newer result as long as they ignore fields they do not
 know. Its
 v0.9 clients (REST, WebSocket, gRPC) still speak v0.9.0, so
@@ -25,12 +27,10 @@ the client against the live service.
 olign-client and olign are separate repos, so nothing structurally forces them
 together. These keep them aligned, weakest to strongest:
 
-1. **The `X.Y` is the API version.** The server serves its routes under
-   `/olign/vX.Y`, so client release line `X.Y` targets server `X.Y` — the URL
-   itself carries the contract version. Keep `X.Y` in lockstep; `Z` may differ
-   (a client-only fix bumps only the client's `Z`). From v1.0 the client's `X.Y`
-   follows the newest API it covers, and `OLIGN_VERSION` pins the v0.9 contract
-   its older clients speak.
+1. **One version number.** From v1.1.4 a client release carries the number
+   of the Olign release it was made with, which is also the API version the
+   server reports. `OLIGN_VERSION` still pins the v0.9 contract the older
+   clients speak.
 
 2. **The pin.** [`OLIGN_VERSION`](OLIGN_VERSION) records the exact olign release
    this branch was verified against, committed alongside the code and auditable
@@ -61,8 +61,8 @@ versions in its body, as `versions`, since 2026-10-11:
 
 | header | example |
 |---|---|
-| `X-Olign-Api-Version` | `v0.9.0` (`v1.2.0` on `/olign/v1`), the wire contract you are talking to |
-| `X-Olign-Version` | `v1.1.3`, the Olign release; `/olign/v1` only |
+| `X-Olign-Api-Version` | `v0.9.0` (`v1.1.4` on `/olign/v1`), the wire contract you are talking to |
+| `X-Olign-Version` | `v1.1.4`, the Olign release; `/olign/v1` only |
 
 **Log the release alongside any score you store.** Scores move when Olign is
 upgraded, and the release is what lets you tell *"the speaker changed"* from

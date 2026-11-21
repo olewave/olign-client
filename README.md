@@ -15,7 +15,7 @@ Install the package. It runs on Python 3.9 or later and needs nothing beyond
 the standard library.
 
 ```bash
-pip install "git+https://github.com/olewave/olign-client"
+pip install olign
 ```
 
 It installs the `olign` package and command from this repo.
@@ -219,7 +219,7 @@ outside it too. Scores do not change.
 
 It needs a clean recording, where the silences are quiet: a voiceover, a studio
 or a quiet room. Where background noise or music fills the silences, the words
-keep their default timing. Before API v1.2.0 this option was the part
+keep their default timing. Before v1.0.10 this option was the part
 `closure_as_silence=1`, and that still works.
 
 ### Billing headers
@@ -243,7 +243,7 @@ for `examples/short1.wav`, its words cut to the first two.
 
 ```json
 {
-  "job_id": "6afd4a9c44664347",
+  "job_id": "6b010178327744f3",
   "state": "done",
   "audio_seconds": 4.48,
   "transcript_source": "client",
@@ -347,12 +347,12 @@ Timings and scores can change between releases, so store `X-Olign-Version` with
 any result you keep. The package keeps both in the JSON it saves.
 
 ```
-X-Olign-API-Version: v1.2.0
-X-Olign-Version: v1.1.3
+X-Olign-API-Version: v1.1.4
+X-Olign-Version: v1.1.4
 ```
 
 [`examples/sample_v1_result.json`](examples/sample_v1_result.json) is the whole
-answer for this clip, saved from Olign v1.1.3 with its version headers.
+answer for this clip, saved from Olign v1.1.4 with its version headers.
 
 ## Errors
 
