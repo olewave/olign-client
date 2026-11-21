@@ -21,7 +21,7 @@ pip install olign
 The package's version is the Olign release it was made with: Olign, its API
 and this package share one version number.
 
-Sign up at [tycho.olewave.com](https://tycho.olewave.com/#signup). No invitation
+Sign up at [dashboard.olewave.com](https://dashboard.olewave.com/#signup). No invitation
 code is needed, and a new account starts with 300 free credits. Save a card under
 **Billing** for 3,000 more: 1,000 minutes of audio at the launch promotion's price.
 Saving it charges nothing. Then create an API

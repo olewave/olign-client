@@ -35,7 +35,7 @@ AUTO = "\0auto"
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="olign", description="Word and phone timings for English speech, from the Olign API.",
-        epilog="Set OLIGN_KEY to your API key (https://tycho.olewave.com > Profile > API keys).")
+        epilog="Set OLIGN_KEY to your API key (https://dashboard.olewave.com > Profile > API keys).")
     ap.add_argument("--version", action="version", version=f"olign {__version__}")
     sub = ap.add_subparsers(dest="command", metavar="COMMAND")
 

@@ -39,7 +39,7 @@ class Client:
         key = api_key or os.environ.get("OLIGN_KEY")
         if not key:
             raise OlignError("no API key: set OLIGN_KEY, or pass Client(api_key=...). "
-                             "Create one under Profile > API keys on https://tycho.olewave.com")
+                             "Create one under Profile > API keys on https://dashboard.olewave.com")
         self.api_key = key
         self.base_url = (base_url or os.environ.get("OLIGN_API_URL") or API).rstrip("/")
         self.poll_interval = poll_interval
