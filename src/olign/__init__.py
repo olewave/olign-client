@@ -9,7 +9,7 @@
     result.to_textgrid("talk.TextGrid")
 """
 
-__version__ = "1.1.5"
+__version__ = "1.2.1"
 
 from .client import Client  # noqa: E402
 from .errors import (  # noqa: E402

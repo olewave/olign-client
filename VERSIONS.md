@@ -7,16 +7,19 @@ number, and a first upload with it was withdrawn.
 
 | olign-client | Olign | API | endpoint | notes |
 |--------------|-------|-----|----------|-------|
-| **v1.1.5**   | **v1.1.5** | **v1.1.5** | `/olign/v1` | the dashboard is now dashboard.olewave.com (tycho.olewave.com redirects there); Olign's results are v1.1.4's; the sample result is Olign v1.1.5's |
+| **v1.2.1**   | **v1.2.1** | **v1.2.1** | `/olign/v1` | phones only on request: `timestamps=word\|phone` (word by default) in the package, the CLI and the example client; the TextGrid has a phones tier only when the result has phones; the sample result is Olign v1.2.1's, sent with `timestamps=phone` |
+| v1.1.5       | v1.1.5 | v1.1.5 | `/olign/v1` | the dashboard is now dashboard.olewave.com (tycho.olewave.com redirects there); Olign's results are v1.1.4's; the sample result is Olign v1.1.5's |
 | **v1.1.4**   | v1.1.4 | v1.1.4 | `/olign/v1` | first release on PyPI (`pip install olign`); `result.pauses` and `result.phrases`, `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.4's |
 | **v1.0.0**   | v1.0.0 | v1.0.0 | `/olign/v1` | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
 | **v0.9.0**   | v0.9.0 | v0.9.0 | `/olign/v0.9` | first release |
 
 **v1.x carries two APIs.** The `olign` package and `examples/v1_client.py`
 speak API v1 (`/olign/v1`, jobs; the server answers `X-Olign-API-Version:
-v1.1.5`). The v1 API changes are additive: a v1.0.0 request still works, and
-older clients read a newer result as long as they ignore fields they do not
-know. Its
+v1.2.1`). The v1 API changes were additive until v1.2.1: a v1.0.0 request still
+works, and older clients read a newer result as long as they ignore fields they
+do not know. v1.2.1 is the exception: a request without `timestamps=phone` gets
+no phones, so an older package writes an empty phones tier, and code that reads
+phones sends `timestamps=phone`. Its
 v0.9 clients (REST, WebSocket, gRPC) still speak v0.9.0, so
 [`OLIGN_VERSION`](OLIGN_VERSION) stays `v0.9.0`: `rest_client.sh` sends it as
 `X-Olign-Client-Version`, and a v0.9 server rejects a MAJOR.MINOR mismatch with

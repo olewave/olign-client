@@ -52,7 +52,7 @@ class Client:
 
     def align(self, audio_path: PathLike, transcript: Transcript = None, poll: bool = True,
               on_progress: Optional[Progress] = None, *, word_edges: Optional[str] = None,
-              align_untranscribed: bool = False) -> Result:
+              align_untranscribed: bool = False, timestamps: Optional[str] = None) -> Result:
         """Align a recording and return its words.
 
         ``transcript`` is optional. Pass the text as a ``str``, or a
@@ -65,20 +65,25 @@ class Client:
         subtitles need (the silence before a p, t, k, b, d or g stays outside
         its word; for clean recordings). ``align_untranscribed=True`` also
         aligns the speech your transcript leaves out; those words come back
-        with ``untranscribed`` set.
+        with ``untranscribed`` set. ``timestamps`` is ``"word"`` (the API's
+        default) or ``"phone"``: each word then also comes with its
+        :attr:`Word.phones`. A phone-level job costs twice as much.
         """
         job = self.submit(audio_path, transcript, word_edges=word_edges,
-                          align_untranscribed=align_untranscribed)
+                          align_untranscribed=align_untranscribed, timestamps=timestamps)
         if on_progress:
             on_progress(job)
         return self.wait(job.job_id, on_progress=on_progress) if poll else job
 
     def submit(self, audio_path: PathLike, transcript: Transcript = None, *,
-               word_edges: Optional[str] = None, align_untranscribed: bool = False) -> Result:
+               word_edges: Optional[str] = None, align_untranscribed: bool = False,
+               timestamps: Optional[str] = None) -> Result:
         """Upload the audio and return the accepted job, still queued.
         Takes the options of :meth:`align`."""
         if word_edges not in (None, "phonetic", "audible"):
             raise ValueError(f"word_edges must be 'phonetic' or 'audible', not {word_edges!r}")
+        if timestamps not in (None, "word", "phone"):
+            raise ValueError(f"timestamps must be 'word' or 'phone', not {timestamps!r}")
         audio = pathlib.Path(audio_path)
         fields: List[Tuple[str, Optional[str], bytes]] = [("audio", audio.name, audio.read_bytes())]
         if transcript is not None:
@@ -87,6 +92,8 @@ class Client:
             fields.append(("word_edges", None, word_edges.encode()))
         if align_untranscribed:
             fields.append(("align_untranscribed", None, b"1"))
+        if timestamps:
+            fields.append(("timestamps", None, timestamps.encode()))
         body, ctype = _multipart(fields)
         d, headers = self._call("POST", self.base_url, body, ctype)
         if not d.get("job_id"):

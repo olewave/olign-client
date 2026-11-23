@@ -185,6 +185,24 @@ class Exporters(unittest.TestCase):
         self.assertNotIn("really", r.to_textgrid())
         self.assertIn("3,really,2.1,2.1,,false", r.to_csv())
 
+    def test_word_level_result_has_no_phones_tier(self):
+        # timestamps="word" (the API's default since v1.2.1): no word carries phones
+        d = sample()
+        d["timestamps"] = "word"
+        for w in d["result"]["words"]:
+            del w["phones"]
+        r = olign.Result.from_dict(d)
+        self.assertEqual(r.timestamps, "word")
+        self.assertEqual(list(textgrid_tiers(r.to_textgrid())), ["words", "pauses"])
+        self.assertEqual(textgrid_tiers(r.to_textgrid())["words"], textgrid_tiers(self.r.to_textgrid())["words"])
+        self.assertEqual(r.to_csv(), self.r.to_csv())
+        with self.assertRaises(ValueError):
+            r.to_csv(phones=True)
+        out = json.loads(r.to_json())
+        self.assertEqual(out["timestamps"], "word")
+        self.assertFalse(any("phones" in w for w in out["result"]["words"]))
+        self.assertEqual(olign.Result.from_dict(out).words, r.words)
+
     def test_clock_handles_hours(self):
         r = olign.Result(words=[olign.Word("late", 3 * 3600 - 1.5, 3 * 3600 - 0.75)])
         self.assertIn("02:59:58,500 --> 02:59:59,250", r.to_srt())
@@ -340,6 +358,16 @@ class RoundTrip(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.client.submit(AUDIO, word_edges="loud")
 
+    def test_timestamps_is_sent_only_when_given(self):
+        self.client.align(AUDIO, transcript=TRANSCRIPT, timestamps="phone")
+        self.assertIn(b'name="timestamps"\r\n\r\nphone\r\n', FakeAPI.uploads[0]["body"])
+        FakeAPI.uploads, FakeAPI.polls = [], {}
+        self.client.align(AUDIO, transcript=TRANSCRIPT)
+        self.assertNotIn(b"timestamps", FakeAPI.uploads[0]["body"])
+        for bad in ("phones", "Phone", ""):
+            with self.assertRaises(ValueError):
+                self.client.submit(AUDIO, timestamps=bad)
+
     def test_poll_false_returns_the_queued_job(self):
         job = self.client.align(AUDIO, poll=False)
         self.assertEqual((job.job_id, job.state, job.words), ("job1", "queued", []))
@@ -397,8 +425,10 @@ class RoundTrip(unittest.TestCase):
             tg, js = pathlib.Path(tmp) / "a.TextGrid", pathlib.Path(tmp) / "a.json"
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                 code = cli.main(["align", str(AUDIO), "--transcript", str(TRANSCRIPT),
-                                 "--textgrid", str(tg), "--json", str(js), "--every", "0"])
+                                 "--textgrid", str(tg), "--json", str(js), "--every", "0",
+                                 "--timestamps", "phone"])
             self.assertEqual(code, 0, err.getvalue())
+            self.assertIn(b'name="timestamps"\r\n\r\nphone\r\n', FakeAPI.uploads[-1]["body"])
             self.assertEqual(out.getvalue(), "short1.wav: 4.48 s of audio, 7 words aligned to your transcript, 4 pauses, 2 phrases\n"
                                              f"wrote {tg}\nwrote {js}\n")
             self.assertIn("olign: job job1 queued", err.getvalue())

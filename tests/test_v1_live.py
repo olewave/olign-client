@@ -32,7 +32,7 @@ class LiveV1(unittest.TestCase):
     def run_case(self, name: str) -> dict:
         case = CASES[name]
         out = pathlib.Path(tempfile.mkdtemp()) / f"{name}.json"
-        cmd = [sys.executable, str(CLIENT), str(DATA / case["audio"]), "-o", str(out)]
+        cmd = [sys.executable, str(CLIENT), str(DATA / case["audio"]), "-o", str(out), "--timestamps", "phone"]
         if case.get("transcript"):
             cmd += ["--transcript", str(DATA / case["transcript"])]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
@@ -60,6 +60,8 @@ class LiveV1(unittest.TestCase):
             last = w["begin"]
             self.assertTrue(w.get("score") is None or 0 <= w["score"] <= 100, w)
             phones = w.get("phones") or []
+            if w["end"] > w["begin"]:
+                self.assertTrue(phones, f"asked for phones, got none for {w['word']!r}")
             for p in phones:
                 self.assertTrue(p.get("score") is None or 0 <= p["score"] <= 100, p)
                 # Every phone sits inside its word, including one olign could
