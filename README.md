@@ -259,7 +259,7 @@ first two. Without it the words come back the same, without their `phones`.
 
 ```json
 {
-  "job_id": "6b0167d8f3956c2d",
+  "job_id": "6b03e39bb22acb8f",
   "state": "done",
   "audio_seconds": 4.48,
   "transcript_source": "client",
@@ -362,12 +362,12 @@ Timings and scores can change between releases, so store `X-Olign-Version` with
 any result you keep. The package keeps both in the JSON it saves.
 
 ```
-X-Olign-API-Version: v1.1.5
-X-Olign-Version: v1.1.5
+X-Olign-API-Version: v1.2.1
+X-Olign-Version: v1.2.1
 ```
 
 [`examples/sample_v1_result.json`](examples/sample_v1_result.json) is the whole
-answer for this clip, saved from Olign v1.1.5 with its version headers.
+answer for this clip, saved from Olign v1.2.1 (sent with `timestamps=phone`) with its version headers.
 
 ## Errors
 

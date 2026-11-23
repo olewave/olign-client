@@ -1,8 +1,9 @@
 {
- "job_id": "6b0167d8f3956c2d",
+ "job_id": "6b03e39bb22acb8f",
  "state": "done",
  "audio_seconds": 4.48,
  "transcript_source": "client",
+ "timestamps": "phone",
  "result": {
   "words": [
    {
@@ -238,7 +239,7 @@
   ]
  },
  "_versions": {
-  "X-Olign-Api-Version": "v1.1.5",
-  "X-Olign-Version": "v1.1.5"
+  "X-Olign-Api-Version": "v1.2.1",
+  "X-Olign-Version": "v1.2.1"
  }
 }

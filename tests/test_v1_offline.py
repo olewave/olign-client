@@ -49,7 +49,7 @@ class ProcessSampleResult(unittest.TestCase):
     def test_sample_is_the_public_v1_result(self):
         # what the API returns once a job is done: these fields and nothing else
         self.assertEqual(set(self.result) - {"_versions"},
-                         {"job_id", "state", "audio_seconds", "transcript_source", "result"})
+                         {"job_id", "state", "audio_seconds", "transcript_source", "timestamps", "result"})
         self.assertEqual(set(self.result["result"]), {"words", "pauses", "phrases"})
 
     def test_csvs_hold_every_word_and_phone(self):
