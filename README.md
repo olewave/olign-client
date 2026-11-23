@@ -1,8 +1,8 @@
 # olign-client
 
 Olign is a forced alignment API for English speech. You send a recording, with
-its transcript if you have one. Olign tells you where every word and every
-phone starts and ends, in seconds.
+its transcript if you have one. Olign tells you where every word starts and
+ends, in seconds, and on request where every phone does.
 
 This repo holds `olign`, the Python package and command line for the API, with
 examples and tests. This README is the documentation: the command line, the
@@ -41,7 +41,7 @@ olign align talk.mp3 --textgrid
 
 The command uploads `talk.mp3` and waits for the job. Then it writes
 `talk.TextGrid`. Open it in [Praat](https://www.fon.hum.uva.nl/praat/) to see a
-words, a phones and a pauses tier.
+words and a pauses tier. Add `--timestamps phone` for a phones tier too.
 
 ## Command line
 
@@ -65,7 +65,7 @@ wrote short1.json
 
 | flag | writes |
 |---|---|
-| `--textgrid` | a Praat TextGrid with a words, a phones and a pauses tier |
+| `--textgrid` | a Praat TextGrid with a words and a pauses tier, and a phones tier with `--timestamps phone` |
 | `--srt` | SubRip subtitles with one cue per phrase |
 | `--vtt` | WebVTT subtitles with a timestamp on every word |
 | `--csv` | one row per word |
@@ -73,10 +73,12 @@ wrote short1.json
 
 With no output flag, `olign align` saves the JSON.
 
-Two options change what Olign does. `--word-edges audible` times words the way a
+Three options change what Olign does. `--word-edges audible` times words the way a
 listener hears them, for dubbing and subtitles (see
 [Word edges](#word-edges-phonetic-or-audible)). `--align-untranscribed` also
 aligns the speech your transcript leaves out, such as fillers and repeats.
+`--timestamps phone` also returns each word's phones, at twice the price (see
+[Word or phone timestamps](#word-or-phone-timestamps)).
 
 ```bash
 olign align voiceover.wav --transcript voiceover.txt --word-edges audible --srt
@@ -126,8 +128,9 @@ hamburger   3.57  4.13
 ```
 
 Pass the transcript as a string, or as a `pathlib.Path` to a UTF-8 text file.
-Leave it out and Olign transcribes the audio. `word_edges="audible"` and
-`align_untranscribed=True` are the two options of the upload.
+Leave it out and Olign transcribes the audio. `word_edges="audible"`,
+`align_untranscribed=True` and `timestamps="phone"` are the three options of
+the upload.
 
 ```python
 result = client.align("voiceover.wav", transcript=pathlib.Path("voiceover.txt"), word_edges="audible")
@@ -140,10 +143,10 @@ Every exporter returns the text. Give it a path and it writes the file too.
 
 | method | gives you |
 |---|---|
-| `to_textgrid()` | a Praat TextGrid with a words, a phones and a pauses tier |
+| `to_textgrid()` | a Praat TextGrid with a words and a pauses tier, and a phones tier when the result has phones |
 | `to_srt()` | SubRip subtitles with one cue per phrase, or per word with `max_words=1` |
 | `to_vtt()` | WebVTT subtitles with a timestamp tag on every word |
-| `to_csv()` | one row per word, or one per phone with `phones=True` |
+| `to_csv()` | one row per word, or one per phone with `phones=True` (a result aligned with `timestamps="phone"`) |
 | `to_json()` | the result in the API's shape, which `olign.Result.load()` reads back |
 
 A long recording takes a while. Pass `poll=False` to get the job back as soon
@@ -177,6 +180,7 @@ The upload is `multipart/form-data`.
 | `transcript` | no | Plain UTF-8 text of what is said. |
 | `align_untranscribed` | no | `1` to also align speech your transcript leaves out, such as fillers and repeats. Recordings of 15 s or less ignore it. |
 | `word_edges` | no | `phonetic` (the default) or `audible`; see [Word edges](#word-edges-phonetic-or-audible). |
+| `timestamps` | no | `word` (the default) or `phone`; see [Word or phone timestamps](#word-or-phone-timestamps). |
 
 Ask for the job every 5 to 10 seconds until its `state` is `done` or `failed`.
 
@@ -222,10 +226,21 @@ or a quiet room. Where background noise or music fills the silences, the words
 keep their default timing. Before v1.0.10 this option was the part
 `closure_as_silence=1`, and that still works.
 
+### Word or phone timestamps
+
+By default (`timestamps=word`) each word comes back with its `begin`, `end` and
+`score`. Send `timestamps=phone` and each word also carries its phones, each
+with its own `begin`, `end` and `score`. Word timing is the same either way. A
+phone-level job costs twice as much, and the job's `timestamps` field says which
+one it is. Any other value gets `400` and costs nothing. Before Olign v1.2.1
+every job returned phones, so code that reads them now sends `timestamps=phone`
+(`timestamps="phone"` in Python, `--timestamps phone` on the command line).
+
 ### Billing headers
 
 The dashboard keeps your balance in credits. A minute of audio is 3 credits
-during the launch promotion and 3.5 after it, and 1,000 credits cost $1. Every
+during the launch promotion and 3.5 after it, and 1,000 credits cost $1. With
+`timestamps=phone` a minute is 6 credits during the promotion and 7 after it. Every
 metered response carries two headers in that unit. `X-Credits-Charged` is what
 the call cost. `X-Credits-Balance` is what your account has left. The
 4.5-second clip above is billed at the 10-second minimum, so on a fresh account
@@ -239,14 +254,16 @@ X-Credits-Balance: 2999.5
 ## The result
 
 Once `state` is `done`, the same response carries `result`. Here is the answer
-for `examples/short1.wav`, its words cut to the first two.
+for `examples/short1.wav` sent with `timestamps=phone`, its words cut to the
+first two. Without it the words come back the same, without their `phones`.
 
 ```json
 {
-  "job_id": "6b0167d8f3956c2d",
+  "job_id": "6b03e39bb22acb8f",
   "state": "done",
   "audio_seconds": 4.48,
   "transcript_source": "client",
+  "timestamps": "phone",
   "result": {
     "words": [
       {"word": "what", "begin": 0.47, "end": 0.798, "score": 55.0, "phones": [
@@ -281,6 +298,7 @@ The job carries these fields.
 | `state` | `queued`, `running`, `done` or `failed`. |
 | `audio_seconds` | The length of your audio after decoding. Usage is metered on it. |
 | `transcript_source` | `client` when you sent a transcript. `asr` when Olign made one. |
+| `timestamps` | `word` or `phone`, as you asked. |
 | `result` | The alignment, once `state` is `done`. |
 | `error` | Why the job failed, once `state` is `failed`. |
 
@@ -294,7 +312,7 @@ these fields.
 | `word` | The word as your transcript spells it. |
 | `begin`, `end` | Where the word starts and ends, in seconds from the start of the file. |
 | `score` | How sure Olign is of this word's alignment, from 0 to 100. |
-| `phones` | The word's phones in order, each with `ph`, `begin`, `end` and `score`. |
+| `phones` | Only with `timestamps=phone`: the word's phones in order, each with `ph`, `begin`, `end` and `score`. |
 
 Phones are ARPAbet symbols in lower case. The word "what" above is `w`, `ah`,
 `t`.
@@ -324,10 +342,7 @@ A word your transcript left out has `"untranscribed": true`. You get these only
 when you send `align_untranscribed=1`.
 
 ```json
-{"word": "um", "begin": 7.3, "end": 7.52, "score": 71.0, "untranscribed": true, "phones": [
-  {"ph": "ah", "begin": 7.3, "end": 7.41, "score": 74},
-  {"ph": "m", "begin": 7.41, "end": 7.52, "score": 68}
-]}
+{"word": "um", "begin": 7.3, "end": 7.52, "score": 71.0, "untranscribed": true}
 ```
 
 `result.pauses` lists, in order, every stretch of 0.05 s or more that no word
@@ -347,12 +362,12 @@ Timings and scores can change between releases, so store `X-Olign-Version` with
 any result you keep. The package keeps both in the JSON it saves.
 
 ```
-X-Olign-API-Version: v1.1.5
-X-Olign-Version: v1.1.5
+X-Olign-API-Version: v1.2.1
+X-Olign-Version: v1.2.1
 ```
 
 [`examples/sample_v1_result.json`](examples/sample_v1_result.json) is the whole
-answer for this clip, saved from Olign v1.1.5 with its version headers.
+answer for this clip, saved from Olign v1.2.1 (sent with `timestamps=phone`) with its version headers.
 
 ## Errors
 

@@ -2,7 +2,8 @@
 
 `olign` is the Python package and command line for Olign, the forced alignment
 API from Olewave. You send English speech, with its transcript if you have one.
-Olign tells you where every word and every phone starts and ends, in seconds.
+Olign tells you where every word starts and ends, in seconds, and with
+`timestamps="phone"` where every phone does.
 Without a transcript, Olign transcribes the audio first and then aligns it.
 
 Each result also lists the pauses between the words and the phrases they
@@ -33,8 +34,8 @@ export OLIGN_KEY=gvk_your_key
 
 ## Command line
 
-One line uploads a recording and writes a Praat TextGrid with a words, a
-phones and a pauses tier.
+One line uploads a recording and writes a Praat TextGrid with a words and a
+pauses tier. Add `--timestamps phone` (twice the price) for a phones tier too.
 
 ```bash
 olign align talk.mp3 --transcript talk.txt --textgrid

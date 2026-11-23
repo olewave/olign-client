@@ -78,6 +78,9 @@ def main() -> None:
     ap.add_argument("--align-untranscribed", action="store_true",
                     help="also align the speech your transcript leaves out; those words come back "
                          "marked \"untranscribed\": true")
+    ap.add_argument("--timestamps", choices=("word", "phone"),
+                    help="word (the server's default) or phone: each word also carries its phones "
+                         "(twice the price)")
     ap.add_argument("-o", "--out", default="result.json")
     ap.add_argument("--api", default=API)
     ap.add_argument("--every", type=float, default=5.0, help="poll interval, seconds")
@@ -91,6 +94,8 @@ def main() -> None:
         fields.append(("word_edges", None, a.word_edges.encode()))
     if a.align_untranscribed:
         fields.append(("align_untranscribed", None, b"1"))
+    if a.timestamps:
+        fields.append(("timestamps", None, a.timestamps.encode()))
     body, ctype = multipart(fields)
 
     sub, _ = call(urllib.request.Request(a.api, data=body, method="POST",

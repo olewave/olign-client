@@ -57,7 +57,8 @@ class Word:
         out: dict = {"word": self.word, "begin": self.begin, "end": self.end}
         if self.score is not None:
             out["score"] = self.score
-        out["phones"] = [p.to_dict() for p in self.phones]
+        if self.phones:  # word-level results have none
+            out["phones"] = [p.to_dict() for p in self.phones]
         if not self.spoken:
             out["spoken"] = False
         if self.annotation:
@@ -116,6 +117,7 @@ class Result:
     state: str = "done"
     audio_seconds: Optional[float] = None
     transcript_source: Optional[str] = None
+    timestamps: Optional[str] = None  # "word" or "phone", as the job asked (API v1.2.1 on)
     words: List[Word] = field(default_factory=list)
     pauses: List[Pause] = field(default_factory=list)
     phrases: List[Phrase] = field(default_factory=list)
@@ -140,6 +142,7 @@ class Result:
             state=d.get("state", "done"),
             audio_seconds=None if d.get("audio_seconds") is None else float(d["audio_seconds"]),
             transcript_source=d.get("transcript_source"),
+            timestamps=d.get("timestamps"),
             words=[Word.from_dict(w) for w in result.get("words") or []],
             pauses=[Pause.from_dict(p) for p in result.get("pauses") or []],
             phrases=[Phrase.from_dict(p) for p in result.get("phrases") or []],
@@ -184,6 +187,7 @@ class Result:
         :meth:`load` reads it back."""
         d: dict = {"job_id": self.job_id, "state": self.state, "audio_seconds": self.audio_seconds,
                    "transcript_source": self.transcript_source,
+                   **({"timestamps": self.timestamps} if self.timestamps else {}),
                    "result": {"words": [w.to_dict() for w in self.words],
                               "pauses": [p.to_dict() for p in self.pauses],
                               "phrases": [p.to_dict() for p in self.phrases]}}
@@ -197,6 +201,8 @@ class Result:
 
     def to_csv(self, path: Optional[PathLike] = None, phones: bool = False) -> str:
         """One row per word. With ``phones=True``, one row per phone."""
+        if phones and not any(w.phones for w in self.words):
+            raise ValueError("this result has no phones: align with timestamps='phone'")
         buf = io.StringIO()
         out = csv.writer(buf, lineterminator="\n")
         if phones:
@@ -211,15 +217,15 @@ class Result:
         return _out(buf.getvalue(), path)
 
     def to_textgrid(self, path: Optional[PathLike] = None) -> str:
-        """A Praat TextGrid with a words, a phones and a pauses tier. The
+        """A Praat TextGrid with a words and a pauses tier, and a phones tier
+        between them when the result has phones (``timestamps="phone"``). The
         gaps between intervals become empty ones, as Praat requires."""
         xmax = self.duration
         words = list(self.timed_words())
-        tiers = {
-            "words": [(w.begin, w.end, w.word) for w in words],
-            "phones": [(p.begin, p.end, p.ph) for w in words for p in w.phones if p.end > p.begin],
-            "pauses": [(p.begin, p.end, "pause") for p in self.pauses if p.end > p.begin],
-        }
+        tiers = {"words": [(w.begin, w.end, w.word) for w in words]}
+        if any(w.phones for w in self.words):
+            tiers["phones"] = [(p.begin, p.end, p.ph) for w in words for p in w.phones if p.end > p.begin]
+        tiers["pauses"] = [(p.begin, p.end, "pause") for p in self.pauses if p.end > p.begin]
         lines = ['File type = "ooTextFile"', 'Object class = "TextGrid"', "",
                  "xmin = 0", f"xmax = {_num(xmax)}", "tiers? <exists>", f"size = {len(tiers)}", "item []:"]
         for n, (name, spans) in enumerate(tiers.items(), 1):

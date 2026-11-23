@@ -52,6 +52,9 @@ def build_parser() -> argparse.ArgumentParser:
                          "them, as dubbing and subtitles need (clean recordings)")
     al.add_argument("--align-untranscribed", action="store_true",
                     help="also align the speech the transcript leaves out (fillers, repeats)")
+    al.add_argument("--timestamps", choices=("word", "phone"),
+                    help="word (the default) or phone: each word also gets its phones; "
+                         "a phone-level job costs twice as much")
     _add_outputs(al, with_json=True)
     al.add_argument("--api", metavar="URL", help="API base URL (default $OLIGN_API_URL, else the public API)")
     al.add_argument("--every", type=float, default=5.0, metavar="SECONDS", help="poll interval (default 5)")
@@ -76,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _add_outputs(p: argparse.ArgumentParser, with_json: bool) -> None:
-    help_ = {"textgrid": "Praat TextGrid, a words, a phones and a pauses tier",
+    help_ = {"textgrid": "Praat TextGrid: a words and a pauses tier, and a phones tier with --timestamps phone",
              "srt": "SubRip subtitles", "vtt": "WebVTT subtitles with a timestamp on every word",
              "csv": "one row per word", "json": "the full result, readable by 'olign export'"}
     for name in FORMATS:
@@ -129,7 +132,7 @@ def run_align(args: argparse.Namespace) -> int:
         + ("" if args.transcript else ", no transcript, so olign transcribes it first"))
     t0 = time.monotonic()
     job = client.align(args.audio, transcript=args.transcript, poll=False, word_edges=args.word_edges,
-                       align_untranscribed=args.align_untranscribed)
+                       align_untranscribed=args.align_untranscribed, timestamps=args.timestamps)
     say(f"job {job.job_id} {job.state}")
     return _wait_and_save(client, job.job_id, job.state, args, targets, args.audio.name, t0)
 
