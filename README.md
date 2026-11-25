@@ -259,17 +259,17 @@ first two. Without it the words come back the same, without their `phones`.
 
 ```json
 {
-  "job_id": "6b03e39bb22acb8f",
+  "job_id": "6b06da69b1225abb",
   "state": "done",
   "audio_seconds": 4.48,
   "transcript_source": "client",
   "timestamps": "phone",
   "result": {
     "words": [
-      {"word": "what", "begin": 0.47, "end": 0.798, "score": 55.0, "phones": [
-        {"ph": "w", "begin": 0.47, "end": 0.518, "score": 0},
-        {"ph": "ah", "begin": 0.518, "end": 0.708, "score": 62},
-        {"ph": "t", "begin": 0.708, "end": 0.798, "score": 72}
+      {"word": "what", "begin": 0.47, "end": 0.798, "score": 90.0, "phones": [
+        {"ph": "w", "begin": 0.47, "end": 0.502, "score": 69},
+        {"ph": "ah", "begin": 0.502, "end": 0.708, "score": 93},
+        {"ph": "t", "begin": 0.708, "end": 0.798, "score": 79}
       ]},
       {"word": "is", "begin": 0.818, "end": 1.133, "score": 83.0, "phones": [
         {"ph": "ih", "begin": 0.818, "end": 1.053, "score": 76},
@@ -318,8 +318,8 @@ Phones are ARPAbet symbols in lower case. The word "what" above is `w`, `ah`,
 `t`.
 
 `score` is alignment confidence. A low score marks a word worth a second look.
-In this clip "what" scored 55, and every other word scored 83 or more. The score
-makes no claim about pronunciation. A phone's `score` is `null` when Olign has
+In this clip every word scored 83 or more, "is" the lowest. The score makes no
+claim about pronunciation. A phone's `score` is `null` when Olign has
 none for it.
 
 Three flags mark special words. Each one appears only when it applies.
@@ -362,12 +362,12 @@ Timings and scores can change between releases, so store `X-Olign-Version` with
 any result you keep. The package keeps both in the JSON it saves.
 
 ```
-X-Olign-API-Version: v1.2.1
-X-Olign-Version: v1.2.1
+X-Olign-API-Version: v1.2.2
+X-Olign-Version: v1.2.2
 ```
 
 [`examples/sample_v1_result.json`](examples/sample_v1_result.json) is the whole
-answer for this clip, saved from Olign v1.2.1 (sent with `timestamps=phone`) with its version headers.
+answer for this clip, saved from Olign v1.2.2 (sent with `timestamps=phone`) with its version headers.
 
 ## Errors
 

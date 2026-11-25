@@ -1,206 +1,7 @@
 {
- "job_id": "6b03e39bb22acb8f",
- "state": "done",
  "audio_seconds": 4.48,
- "transcript_source": "client",
- "timestamps": "phone",
+ "job_id": "6b06da69b1225abb",
  "result": {
-  "words": [
-   {
-    "word": "what",
-    "begin": 0.47,
-    "end": 0.798,
-    "score": 55.0,
-    "phones": [
-     {
-      "ph": "w",
-      "begin": 0.47,
-      "end": 0.518,
-      "score": 0
-     },
-     {
-      "ph": "ah",
-      "begin": 0.518,
-      "end": 0.708,
-      "score": 62
-     },
-     {
-      "ph": "t",
-      "begin": 0.708,
-      "end": 0.798,
-      "score": 72
-     }
-    ]
-   },
-   {
-    "word": "is",
-    "begin": 0.818,
-    "end": 1.133,
-    "score": 83.0,
-    "phones": [
-     {
-      "ph": "ih",
-      "begin": 0.818,
-      "end": 1.053,
-      "score": 76
-     },
-     {
-      "ph": "z",
-      "begin": 1.053,
-      "end": 1.133,
-      "score": 86
-     }
-    ]
-   },
-   {
-    "word": "better",
-    "begin": 1.213,
-    "end": 2.018,
-    "score": 87.0,
-    "phones": [
-     {
-      "ph": "b",
-      "begin": 1.213,
-      "end": 1.293,
-      "score": 67
-     },
-     {
-      "ph": "eh",
-      "begin": 1.293,
-      "end": 1.458,
-      "score": 67
-     },
-     {
-      "ph": "t",
-      "begin": 1.458,
-      "end": 1.573,
-      "score": 89
-     },
-     {
-      "ph": "er",
-      "begin": 1.573,
-      "end": 2.018,
-      "score": 78
-     }
-    ]
-   },
-   {
-    "word": "a",
-    "begin": 2.173,
-    "end": 2.423,
-    "score": 99.0,
-    "phones": [
-     {
-      "ph": "ah",
-      "begin": 2.173,
-      "end": 2.423,
-      "score": 77
-     }
-    ]
-   },
-   {
-    "word": "fruit",
-    "begin": 2.423,
-    "end": 3.023,
-    "score": 95.0,
-    "phones": [
-     {
-      "ph": "f",
-      "begin": 2.423,
-      "end": 2.588,
-      "score": 88
-     },
-     {
-      "ph": "r",
-      "begin": 2.588,
-      "end": 2.668,
-      "score": 79
-     },
-     {
-      "ph": "uw",
-      "begin": 2.668,
-      "end": 2.823,
-      "score": 93
-     },
-     {
-      "ph": "t",
-      "begin": 2.823,
-      "end": 3.023,
-      "score": 82
-     }
-    ]
-   },
-   {
-    "word": "or",
-    "begin": 3.023,
-    "end": 3.573,
-    "score": 98.0,
-    "phones": [
-     {
-      "ph": "ao",
-      "begin": 3.023,
-      "end": 3.378,
-      "score": 97
-     },
-     {
-      "ph": "r",
-      "begin": 3.378,
-      "end": 3.573,
-      "score": 86
-     }
-    ]
-   },
-   {
-    "word": "hamburger",
-    "begin": 3.573,
-    "end": 4.133,
-    "score": 95.0,
-    "phones": [
-     {
-      "ph": "hh",
-      "begin": 3.573,
-      "end": 3.678,
-      "score": 100
-     },
-     {
-      "ph": "ae",
-      "begin": 3.678,
-      "end": 3.728,
-      "score": 89
-     },
-     {
-      "ph": "m",
-      "begin": 3.728,
-      "end": 3.803,
-      "score": 96
-     },
-     {
-      "ph": "b",
-      "begin": 3.803,
-      "end": 3.838,
-      "score": 100
-     },
-     {
-      "ph": "er",
-      "begin": 3.838,
-      "end": 3.903,
-      "score": 100
-     },
-     {
-      "ph": "g",
-      "begin": 3.903,
-      "end": 4.008,
-      "score": 96
-     },
-     {
-      "ph": "er",
-      "begin": 4.008,
-      "end": 4.133,
-      "score": 77
-     }
-    ]
-   }
-  ],
   "pauses": [
    {
     "begin": 0.0,
@@ -236,10 +37,209 @@
      6
     ]
    }
+  ],
+  "words": [
+   {
+    "begin": 0.47,
+    "end": 0.798,
+    "phones": [
+     {
+      "begin": 0.47,
+      "end": 0.502,
+      "ph": "w",
+      "score": 69
+     },
+     {
+      "begin": 0.502,
+      "end": 0.708,
+      "ph": "ah",
+      "score": 93
+     },
+     {
+      "begin": 0.708,
+      "end": 0.798,
+      "ph": "t",
+      "score": 79
+     }
+    ],
+    "score": 90.0,
+    "word": "what"
+   },
+   {
+    "begin": 0.818,
+    "end": 1.133,
+    "phones": [
+     {
+      "begin": 0.818,
+      "end": 1.053,
+      "ph": "ih",
+      "score": 76
+     },
+     {
+      "begin": 1.053,
+      "end": 1.133,
+      "ph": "z",
+      "score": 86
+     }
+    ],
+    "score": 83.0,
+    "word": "is"
+   },
+   {
+    "begin": 1.213,
+    "end": 2.018,
+    "phones": [
+     {
+      "begin": 1.213,
+      "end": 1.293,
+      "ph": "b",
+      "score": 67
+     },
+     {
+      "begin": 1.293,
+      "end": 1.458,
+      "ph": "eh",
+      "score": 67
+     },
+     {
+      "begin": 1.458,
+      "end": 1.573,
+      "ph": "t",
+      "score": 89
+     },
+     {
+      "begin": 1.573,
+      "end": 2.018,
+      "ph": "er",
+      "score": 78
+     }
+    ],
+    "score": 87.0,
+    "word": "better"
+   },
+   {
+    "begin": 2.173,
+    "end": 2.423,
+    "phones": [
+     {
+      "begin": 2.173,
+      "end": 2.423,
+      "ph": "ah",
+      "score": 77
+     }
+    ],
+    "score": 99.0,
+    "word": "a"
+   },
+   {
+    "begin": 2.423,
+    "end": 3.023,
+    "phones": [
+     {
+      "begin": 2.423,
+      "end": 2.588,
+      "ph": "f",
+      "score": 88
+     },
+     {
+      "begin": 2.588,
+      "end": 2.668,
+      "ph": "r",
+      "score": 79
+     },
+     {
+      "begin": 2.668,
+      "end": 2.823,
+      "ph": "uw",
+      "score": 93
+     },
+     {
+      "begin": 2.823,
+      "end": 3.023,
+      "ph": "t",
+      "score": 82
+     }
+    ],
+    "score": 95.0,
+    "word": "fruit"
+   },
+   {
+    "begin": 3.023,
+    "end": 3.573,
+    "phones": [
+     {
+      "begin": 3.023,
+      "end": 3.378,
+      "ph": "ao",
+      "score": 97
+     },
+     {
+      "begin": 3.378,
+      "end": 3.573,
+      "ph": "r",
+      "score": 86
+     }
+    ],
+    "score": 98.0,
+    "word": "or"
+   },
+   {
+    "begin": 3.573,
+    "end": 4.133,
+    "phones": [
+     {
+      "begin": 3.573,
+      "end": 3.678,
+      "ph": "hh",
+      "score": 100
+     },
+     {
+      "begin": 3.678,
+      "end": 3.728,
+      "ph": "ae",
+      "score": 89
+     },
+     {
+      "begin": 3.728,
+      "end": 3.803,
+      "ph": "m",
+      "score": 96
+     },
+     {
+      "begin": 3.803,
+      "end": 3.838,
+      "ph": "b",
+      "score": 100
+     },
+     {
+      "begin": 3.838,
+      "end": 3.903,
+      "ph": "er",
+      "score": 100
+     },
+     {
+      "begin": 3.903,
+      "end": 4.008,
+      "ph": "g",
+      "score": 96
+     },
+     {
+      "begin": 4.008,
+      "end": 4.133,
+      "ph": "er",
+      "score": 77
+     }
+    ],
+    "score": 95.0,
+    "word": "hamburger"
+   }
   ]
  },
+ "state": "done",
+ "timestamps": "phone",
+ "transcript_source": "client",
  "_versions": {
-  "X-Olign-Api-Version": "v1.2.1",
-  "X-Olign-Version": "v1.2.1"
+  "X-Olign-Version": "v1.2.2",
+  "X-Olign-API-Version": "v1.2.2"
  }
 }

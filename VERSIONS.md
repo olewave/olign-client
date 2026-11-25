@@ -7,7 +7,8 @@ number, and a first upload with it was withdrawn.
 
 | olign-client | Olign | API | endpoint | notes |
 |--------------|-------|-----|----------|-------|
-| **v1.2.1**   | **v1.2.1** | **v1.2.1** | `/olign/v1` | phones only on request: `timestamps=word\|phone` (word by default) in the package, the CLI and the example client; the TextGrid has a phones tier only when the result has phones; the sample result is Olign v1.2.1's, sent with `timestamps=phone` |
+| **v1.2.2**   | **v1.2.2** | **v1.2.2** | `/olign/v1` | the package is unchanged; Olign times long recordings more closely, and reads stretches of exact digital silence with a faint noise floor; the sample result is Olign v1.2.2's: the same word times, and "what", right after the clip's 0.44 s of digital silence, has one phone edge 16 ms earlier and scores 90 (was 55) |
+| v1.2.1       | v1.2.1 | v1.2.1 | `/olign/v1` | phones only on request: `timestamps=word\|phone` (word by default) in the package, the CLI and the example client; the TextGrid has a phones tier only when the result has phones; the sample result is Olign v1.2.1's, sent with `timestamps=phone` |
 | v1.1.5       | v1.1.5 | v1.1.5 | `/olign/v1` | the dashboard is now dashboard.olewave.com (tycho.olewave.com redirects there); Olign's results are v1.1.4's; the sample result is Olign v1.1.5's |
 | **v1.1.4**   | v1.1.4 | v1.1.4 | `/olign/v1` | first release on PyPI (`pip install olign`); `result.pauses` and `result.phrases`, `word_edges=phonetic\|audible` and `align_untranscribed` in the package, the CLI and the example client; the sample result is Olign v1.1.4's |
 | **v1.0.0**   | v1.0.0 | v1.0.0 | `/olign/v1` | jobs API (beta): whole recordings, transcript optional; still carries the v0.9 clients |
