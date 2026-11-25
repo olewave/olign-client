@@ -78,16 +78,16 @@ class Exporters(unittest.TestCase):
         self.words = sample()["result"]["words"]
 
     def test_load_reads_the_job_and_every_word(self):
-        self.assertEqual(self.r.job_id, "6b03e39bb22acb8f")
+        self.assertEqual(self.r.job_id, "6b06da69b1225abb")
         self.assertTrue(self.r.done)
         self.assertEqual(self.r.audio_seconds, 4.48)
         self.assertEqual(self.r.transcript_source, "client")
         self.assertEqual(self.r.text, "what is better a fruit or hamburger")
         w = self.r.words[0]
-        self.assertEqual((w.word, w.begin, w.end, w.score), ("what", 0.47, 0.798, 55.0))
+        self.assertEqual((w.word, w.begin, w.end, w.score), ("what", 0.47, 0.798, 90.0))
         self.assertEqual([p.ph for p in w.phones], ["w", "ah", "t"])
-        self.assertEqual(self.r.api_version, "v1.2.1")
-        self.assertEqual(self.r.olign_version, "v1.2.1")
+        self.assertEqual(self.r.api_version, "v1.2.2")
+        self.assertEqual(self.r.olign_version, "v1.2.2")
 
     def test_textgrid_tiers_cover_the_audio_without_gaps_or_overlaps(self):
         tiers = textgrid_tiers(self.r.to_textgrid())
@@ -143,10 +143,10 @@ class Exporters(unittest.TestCase):
     def test_csv_words_and_phones(self):
         rows = self.r.to_csv().splitlines()
         self.assertEqual(rows[0], "index,word,begin,end,score,spoken")
-        self.assertEqual(rows[1], "0,what,0.47,0.798,55,true")
+        self.assertEqual(rows[1], "0,what,0.47,0.798,90,true")
         self.assertEqual(len(rows), 1 + 7)
         phones = self.r.to_csv(phones=True).splitlines()
-        self.assertEqual(phones[1], "0,what,w,0.47,0.518,0")
+        self.assertEqual(phones[1], "0,what,w,0.47,0.502,69")
         self.assertEqual(len(phones), 1 + 23)
 
     def test_json_round_trip_keeps_only_public_fields(self):
@@ -271,7 +271,7 @@ class FakeAPI(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
-        self.send_header("X-Olign-Api-Version", "v1.2.1")
+        self.send_header("X-Olign-Api-Version", "v1.2.2")
         for k, v in (headers or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -329,8 +329,8 @@ class RoundTrip(unittest.TestCase):
         seen = []
         r = self.client.align(AUDIO, transcript=TRANSCRIPT, on_progress=lambda x: seen.append(x.state))
         self.assertEqual(r.text, "what is better a fruit or hamburger")
-        self.assertEqual(r.job_id, "6b03e39bb22acb8f")
-        self.assertEqual(r.api_version, "v1.2.1")
+        self.assertEqual(r.job_id, "6b06da69b1225abb")
+        self.assertEqual(r.api_version, "v1.2.2")
         self.assertEqual(seen, ["queued", "running", "done"])
         up = FakeAPI.uploads[0]
         self.assertTrue(up["ctype"].startswith("multipart/form-data; boundary="))
